@@ -1,0 +1,138 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UnidadMedida {
+  L
+  ML
+  KG
+  G
+  PZA
+  BOTELLA
+}
+
+enum TipoMovimientoInsumo {
+  COMPRA
+  AJUSTE_ENTRADA
+  PRODUCCION_CONSUMO
+  AJUSTE_SALIDA
+  MERMA
+}
+
+enum EstadoLote {
+  PENDIENTE
+  EN_PRODUCCION
+  COMPLETADO
+  CANCELADO
+}
+
+model Insumo {
+  id           String   @id @default(cuid())
+  codigo       String   @unique
+  nombre       String
+  categoria    String
+  unidadMedida UnidadMedida
+  costoUnitario Decimal  @db.Decimal(18, 4)
+  stockActual  Decimal  @db.Decimal(18, 4) @default(0)
+  stockMinimo  Decimal  @db.Decimal(18, 4) @default(0)
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  recetaInsumos RecetaInsumo[]
+  movimientos   InsumoMovimiento[]
+
+  @@map("insumos")
+}
+
+model Receta {
+  id                  String   @id @default(cuid())
+  nombre              String
+  estilo              String
+  abv                 Decimal? @db.Decimal(5, 2)
+  volumenLoteEstimado Decimal? @db.Decimal(18, 2)
+  rendimientoBotellas Int
+  activo              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  recetaInsumos      RecetaInsumo[]
+  lotesProduccion    LoteProduccion[]
+  productosTerminados ProductoTerminado[]
+
+  @@map("recetas")
+}
+
+model RecetaInsumo {
+  id                String  @id @default(cuid())
+  recetaId          String
+  insumoId          String
+  cantidadConsumida Decimal @db.Decimal(18, 4)
+  observaciones     String?
+
+  receta Receta @relation(fields: [recetaId], references: [id], onDelete: Cascade)
+  insumo Insumo @relation(fields: [insumoId], references: [id], onDelete: Restrict)
+
+  @@unique([recetaId, insumoId])
+  @@map("receta_insumos")
+}
+
+model InsumoMovimiento {
+  id            String              @id @default(cuid())
+  insumoId      String
+  tipo          TipoMovimientoInsumo
+  cantidad      Decimal             @db.Decimal(18, 4)
+  costoUnitario Decimal?            @db.Decimal(18, 4)
+  total         Decimal?            @db.Decimal(18, 4)
+  saldoAfter    Decimal?            @db.Decimal(18, 4)
+  referencia    String?
+  createdAt     DateTime            @default(now())
+
+  insumo Insumo @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+
+  @@map("insumo_movimientos")
+}
+
+model LoteProduccion {
+  id                String      @id @default(cuid())
+  codigoLote        String      @unique
+  recetaId          String
+  fechaPlanificada  DateTime?
+  fechaProduccion   DateTime?
+  estado            EstadoLote  @default(PENDIENTE)
+  botellasEsperadas Int
+  botellasReales    Int         @default(0)
+  costoTotalLote    Decimal?    @db.Decimal(18, 4)
+  costoUnitarioPieza Decimal?   @db.Decimal(18, 4)
+  observaciones     String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  receta            Receta            @relation(fields: [recetaId], references: [id], onDelete: Restrict)
+  productoTerminado ProductoTerminado?
+
+  @@map("lotes_produccion")
+}
+
+model ProductoTerminado {
+  id                   String   @id @default(cuid())
+  loteProduccionId     String   @unique
+  recetaId             String
+  fechaIngreso         DateTime @default(now())
+  botellasEnStock      Int      @default(0)
+  costoRealLote        Decimal  @db.Decimal(18, 4)
+  costoUnitarioBotella Decimal  @db.Decimal(18, 4)
+  createdAt            DateTime @default(now())
+
+  loteProduccion LoteProduccion @relation(fields: [loteProduccionId], references: [id], onDelete: Cascade)
+  receta         Receta         @relation(fields: [recetaId], references: [id], onDelete: Restrict)
+
+  @@map("productos_terminados")
+}
