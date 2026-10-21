@@ -1,44 +1,67 @@
 # MELMIR ERP
 
-ERP para producción, costos y ventas de hidromiel.
+Sistema ERP para gestión de hidromiel con Next.js, Prisma y PostgreSQL.
 
-## Stack
+## Stack tecnológico
 - Next.js App Router
+- React + TypeScript
+- Tailwind CSS
 - Prisma ORM
 - PostgreSQL (NeonTech)
-- Tailwind CSS
 - Vercel
 
-## Variables de entorno
+## Requisitos
+- Node.js 18+
+- Cuenta en Vercel
+- Base de datos PostgreSQL en NeonTech
 
-1. Crea tu archivo .env a partir de .env.example
-2. Configura `DATABASE_URL` con tu cadena de conexión de NeonTech
+## Configuración local
 
-```bash
-cp .env.example .env
-```
+1. Instala dependencias:
+   ```bash
+   npm install
+   ```
 
-## Instalación local
+2. Crea tu `.env`:
+   ```bash
+   cp .env.example .env
+   ```
 
-```bash
-npm install
-npx prisma generate
-npx prisma db push
-npm run seed
-npm run dev
-```
+3. Configura la variable `DATABASE_URL` con tu conexión de NeonTech.
+
+4. Genera Prisma y sincroniza esquema:
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   npm run seed
+   ```
+
+5. Inicia el proyecto:
+   ```bash
+   npm run dev
+   ```
 
 ## Despliegue en Vercel
 
 - Conecta este repositorio a Vercel
-- En Variables de entorno agrega:
-  - `DATABASE_URL`
-  - `NEXTAUTH_SECRET` (opcional si no usas auth)
+- Define la variable de entorno `DATABASE_URL`
+- Selecciona el framework `Next.js`
 - Haz deploy
 
-## Estructura principal
+## Módulos incluidos
+- Inventario de insumos
+- Gestión de recetas
+- Costeo auto por lote y por pieza
+- Producción y cierre de lotes
+- Producto terminado y stock
+- Pricing sugerido por receta
 
-- `app/` - páginas y server actions
-- `components/` - componentes compartidos
-- `lib/` - helper de Prisma y utilidades
-- `prisma/` - schema y seed
+## Estructura principal
+- `app/` páginas y listas principales
+- `app/actions/` server actions
+- `app/lib/` lógica de negocio y cálculo
+- `prisma/` esquema y seed
+- `components/` UI reutilizable
+
+## Nota
+Antes del despliegue final, debes configurar la variable `DATABASE_URL` de tu base NeonTech para que Prisma se conecte correctamente.

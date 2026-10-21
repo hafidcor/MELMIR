@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'MELMIR ERP',
-  description: 'ERP para gestión de hidromiel',
+  description: 'ERP para operaciones de hidromiel',
 };
 
 export default function RootLayout({

@@ -1,7 +1,55 @@
 "use server";
 
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { calculateRecipeCost } from '@/app/lib/costeo';
+
+export async function crearInsumo(formData: FormData) {
+  const codigo = String(formData.get('codigo') ?? '');
+  const nombre = String(formData.get('nombre') ?? '');
+  const categoria = String(formData.get('categoria') ?? '');
+  const unidadMedida = String(formData.get('unidadMedida') ?? 'KG');
+  const costoUnitario = Number(formData.get('costoUnitario') ?? 0);
+  const stockActual = Number(formData.get('stockActual') ?? 0);
+  const stockMinimo = Number(formData.get('stockMinimo') ?? 0);
+
+  await prisma.insumo.create({
+    data: {
+      codigo,
+      nombre,
+      categoria,
+      unidadMedida: unidadMedida as any,
+      costoUnitario,
+      stockActual,
+      stockMinimo,
+    },
+  });
+
+  revalidatePath('/insumos');
+}
+
+export async function crearReceta(formData: FormData) {
+  const nombre = String(formData.get('nombre') ?? '');
+  const estilo = String(formData.get('estilo') ?? '');
+  const abv = Number(formData.get('abv') ?? 0);
+  const volumenLoteEstimado = Number(formData.get('volumenLoteEstimado') ?? 0);
+  const rendimientoBotellas = Number(formData.get('rendimientoBotellas') ?? 0);
+
+  await prisma.receta.create({
+    data: {
+      nombre,
+      estilo,
+      abv,
+      volumenLoteEstimado,
+      rendimientoBotellas,
+      recetaInsumos: {
+        create: [],
+      },
+    },
+  });
+
+  revalidatePath('/recetas');
+}
 
 export async function completarLoteProduccion({
   loteId,
@@ -43,9 +91,7 @@ export async function completarLoteProduccion({
 
       await tx.insumo.update({
         where: { id: insumo.id },
-        data: {
-          stockActual: nuevoStock,
-        },
+        data: { stockActual: nuevoStock },
       });
 
       await tx.insumoMovimiento.create({

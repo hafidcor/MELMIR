@@ -101,19 +101,19 @@ model InsumoMovimiento {
 }
 
 model LoteProduccion {
-  id                String      @id @default(cuid())
-  codigoLote        String      @unique
-  recetaId          String
-  fechaPlanificada  DateTime?
-  fechaProduccion   DateTime?
-  estado            EstadoLote  @default(PENDIENTE)
-  botellasEsperadas Int
-  botellasReales    Int         @default(0)
-  costoTotalLote    Decimal?    @db.Decimal(18, 4)
-  costoUnitarioPieza Decimal?   @db.Decimal(18, 4)
-  observaciones     String?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  id                 String      @id @default(cuid())
+  codigoLote         String      @unique
+  recetaId           String
+  fechaPlanificada   DateTime?
+  fechaProduccion    DateTime?
+  estado             EstadoLote  @default(PENDIENTE)
+  botellasEsperadas  Int
+  botellasReales     Int         @default(0)
+  costoTotalLote     Decimal?    @db.Decimal(18, 4)
+  costoUnitarioPieza Decimal?    @db.Decimal(18, 4)
+  observaciones      String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
   receta            Receta            @relation(fields: [recetaId], references: [id], onDelete: Restrict)
   productoTerminado ProductoTerminado?

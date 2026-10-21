@@ -79,6 +79,29 @@ async function main() {
       });
     }
   }
+
+  const loteExistente = await prisma.loteProduccion.findFirst({
+    where: { codigoLote: 'LT-001' },
+  });
+
+  if (!loteExistente) {
+    const receta = await prisma.receta.findFirst({ where: { nombre: 'Hidromiel Clásica' } });
+
+    if (receta) {
+      await prisma.loteProduccion.create({
+        data: {
+          codigoLote: 'LT-001',
+          recetaId: receta.id,
+          botellasEsperadas: 120,
+          botellasReales: 118,
+          estado: 'COMPLETADO',
+          costoTotalLote: 1248.3,
+          costoUnitarioPieza: 10.4,
+          fechaProduccion: new Date(),
+        },
+      });
+    }
+  }
 }
 
 main()
