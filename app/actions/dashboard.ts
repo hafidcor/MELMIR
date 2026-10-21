@@ -45,3 +45,13 @@ export async function obtenerLotes() {
     },
   });
 }
+
+export async function obtenerHistorialReciente() {
+  return prisma.insumoMovimiento.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      insumo: true,
+    },
+    take: 8,
+  });
+}

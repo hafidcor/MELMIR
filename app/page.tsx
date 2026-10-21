@@ -1,71 +1,178 @@
-import './globals.css';
-import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { obtenerDashboard, obtenerHistorialReciente, obtenerInsumos, obtenerLotes, obtenerRecetas } from '@/app/actions/dashboard';
 
-export const metadata: Metadata = {
-  title: 'MELMIR ERP',
-  description: 'ERP para operaciones de hidromiel',
-};
+export default async function HomePage() {
+  const dashboard = await obtenerDashboard();
+  const insumos = await obtenerInsumos();
+  const recetas = await obtenerRecetas();
+  const lotes = await obtenerLotes();
+  const historial = await obtenerHistorialReciente();
 
-const navItems = [
-  { href: '/', label: 'Dashboard' },
-  { href: '/insumos', label: 'Insumos' },
-  { href: '/recetas', label: 'Recetas' },
-  { href: '/produccion', label: 'Producción' },
-  { href: '/precios', label: 'Precios' },
-];
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
   return (
-    <html lang="es">
-      <body className="min-h-screen bg-slate-100 text-slate-900">
-        <div className="min-h-screen">
-          <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
-            <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-              <Link href="/" className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-sm font-bold text-white">
-                  M
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
-                  <p className="text-sm font-semibold">ERP Hidromiel</p>
-                </div>
-              </Link>
+    <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
+      <div className="mx-auto max-w-7xl space-y-8">
+        <header className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
+            <h1 className="mt-2 text-4xl font-bold">ERP de producción y ventas</h1>
+          </div>
 
-              <nav className="hidden items-center gap-2 md:flex">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-                  >
-                    {item.label}
-                  </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/insumos">
+              <Button variant="outline">+ Insumo</Button>
+            </Link>
+            <Link href="/recetas">
+              <Button>+ Receta</Button>
+            </Link>
+            <Link href="/produccion">
+              <Button variant="secondary">Nuevo lote</Button>
+            </Link>
+          </div>
+        </header>
+
+        <section className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <CardHeader>
+              <CardDescription>Insumos</CardDescription>
+              <CardTitle>{dashboard.insumosCount}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-slate-500">Materias primas</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>Recetas</CardDescription>
+              <CardTitle>{dashboard.recetasCount}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-slate-500">Fórmulas activas</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>Lotes</CardDescription>
+              <CardTitle>{dashboard.lotesCount}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-slate-500">Órdenes registradas</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>Botellas en stock</CardDescription>
+              <CardTitle>{dashboard.stockTotal}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-slate-500">Producto terminado</p>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Resumen de insumos</CardTitle>
+              <CardDescription>Inventario actual</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {insumos.slice(0, 5).map((item) => (
+                  <div key={item.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                    <span>{item.nombre}</span>
+                    <span className="font-semibold">
+                      {Number(item.stockActual)} {item.unidadMedida}
+                    </span>
+                  </div>
                 ))}
-              </nav>
-
-              <div className="flex items-center gap-2">
-                <Link href="/insumos">
-                  <Button variant="outline" size="sm">
-                    Insumos
-                  </Button>
-                </Link>
-                <Link href="/recetas">
-                  <Button size="sm">Nueva receta</Button>
-                </Link>
               </div>
-            </div>
-          </header>
+            </CardContent>
+          </Card>
 
-          <main>{children}</main>
-        </div>
-      </body>
-    </html>
+          <Card>
+            <CardHeader>
+              <CardTitle>Recetas principales</CardTitle>
+              <CardDescription>Más relevantes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {recetas.slice(0, 5).map((receta) => (
+                  <div key={receta.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                    <span>{receta.nombre}</span>
+                    <span className="font-semibold">{receta.rendimientoBotellas} bot.</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <div>
+              <CardTitle>Historial reciente</CardTitle>
+              <CardDescription>Movimientos y producción</CardDescription>
+            </div>
+            <Link href="/historial">
+              <Button variant="outline" size="sm">
+                Ver historial
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {historial.map((movimiento) => (
+                <div key={movimiento.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                  <div>
+                    <p className="font-semibold">{movimiento.insumo?.nombre}</p>
+                    <p className="text-slate-500">{movimiento.tipo}</p>
+                  </div>
+                  <div className="text-right">
+                    <p>{Number(movimiento.cantidad)} {movimiento.insumo?.unidadMedida}</p>
+                    <p className="text-slate-500">{movimiento.referencia}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <div>
+              <CardTitle>Lotes recientes</CardTitle>
+              <CardDescription>Producción y cierre</CardDescription>
+            </div>
+            <Link href="/produccion">
+              <Button variant="outline" size="sm">
+                Ver todos
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {lotes.slice(0, 5).map((lote) => (
+                <div key={lote.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                  <div>
+                    <p className="font-semibold">{lote.codigoLote}</p>
+                    <p className="text-slate-500">{lote.receta.nombre}</p>
+                  </div>
+                  <div className="text-right">
+                    <p>{lote.estado}</p>
+                    <p className="text-slate-500">{lote.botellasReales} botellas</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </main>
   );
 }
