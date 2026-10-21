@@ -26,14 +26,19 @@ export async function crearInsumo(formData: FormData) {
   });
 
   revalidatePath('/insumos');
+  revalidatePath('/');
 }
 
 export async function crearReceta(formData: FormData) {
-  const nombre = String(formData.get('nombre') ?? '');
-  const estilo = String(formData.get('estilo') ?? '');
+  const nombre = String(formData.get('nombre') ?? '').trim();
+  const estilo = String(formData.get('estilo') ?? '').trim();
   const abv = Number(formData.get('abv') ?? 0);
   const volumenLoteEstimado = Number(formData.get('volumenLoteEstimado') ?? 0);
   const rendimientoBotellas = Number(formData.get('rendimientoBotellas') ?? 0);
+
+  if (!nombre || !estilo || rendimientoBotellas <= 0) {
+    throw new Error('Nombre, estilo y rendimiento son obligatorios');
+  }
 
   await prisma.receta.create({
     data: {
@@ -42,13 +47,43 @@ export async function crearReceta(formData: FormData) {
       abv,
       volumenLoteEstimado,
       rendimientoBotellas,
-      recetaInsumos: {
-        create: [],
-      },
     },
   });
 
   revalidatePath('/recetas');
+  revalidatePath('/');
+}
+
+export async function crearLote(formData: FormData) {
+  const recetaId = String(formData.get('recetaId') ?? '');
+  const botellasEsperadas = Number(formData.get('botellasEsperadas') ?? 0);
+
+  if (!recetaId || botellasEsperadas <= 0) {
+    throw new Error('Selecciona una receta y establece el número de botellas');
+  }
+
+  const receta = await prisma.receta.findUnique({ where: { id: recetaId } });
+
+  if (!receta) {
+    throw new Error('La receta no existe');
+  }
+
+  const codigoLote = `LT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 900 + 100))}`;
+
+  await prisma.loteProduccion.create({
+    data: {
+      codigoLote,
+      recetaId,
+      botellasEsperadas: botellasEsperadas,
+      estado: 'PENDIENTE',
+      fechaPlanificada: new Date(),
+      costoTotalLote: 0,
+      costoUnitarioPieza: 0,
+    },
+  });
+
+  revalidatePath('/produccion');
+  revalidatePath('/');
 }
 
 export async function completarLoteProduccion({
