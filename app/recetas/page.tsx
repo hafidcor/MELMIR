@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DbWarning } from '@/components/db-warning';
+import { R2Warning } from '@/components/r2-warning';
+import { ArchivosEntidad, ImagenPrincipal } from '@/components/archivos';
 import { isDbConfigured, prisma } from '@/lib/prisma';
 import { crearReceta } from '@/app/actions/produccion';
 import { agregarInsumoAReceta } from '@/app/actions/recetas';
@@ -65,6 +67,7 @@ export default async function RecetasPage() {
     <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
       <div className="mx-auto max-w-6xl space-y-6">
         <DbWarning />
+        <R2Warning />
 
         <header>
           <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
@@ -136,6 +139,11 @@ export default async function RecetasPage() {
             <CardContent>
               <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
                 <div className="space-y-2">
+                  <ImagenPrincipal
+                    entidad="RECETA"
+                    entidadId={receta.id}
+                    alt={`Foto de ${receta.nombre}`}
+                  />
                   {receta.recetaInsumos.length === 0 && (
                     <p className="text-sm text-slate-500">
                       Esta receta aún no tiene insumos. Agrégalos con el formulario de abajo.
@@ -193,6 +201,15 @@ export default async function RecetasPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="mt-4">
+                <ArchivosEntidad
+                  entidad="RECETA"
+                  entidadId={receta.id}
+                  titulo="Foto y archivos de la receta"
+                  descripcion="Foto del producto y documentos guardados en Cloudflare R2. La primera imagen subida se muestra como foto principal."
+                />
               </div>
             </CardContent>
           </Card>

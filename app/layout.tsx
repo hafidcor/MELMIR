@@ -16,6 +16,8 @@ const navItems = [
   { href: '/recetas', label: 'Recetas' },
   { href: '/produccion', label: 'Producción' },
   { href: '/precios', label: 'Precios' },
+  { href: '/ventas', label: 'Ventas' },
+  { href: '/archivos', label: 'Archivos' },
   { href: '/historial', label: 'Historial' },
 ];
 

@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DbWarning } from '@/components/db-warning';
+import { R2Warning } from '@/components/r2-warning';
+import { ArchivosEntidad } from '@/components/archivos';
 import { isDbConfigured, prisma } from '@/lib/prisma';
 import { crearLote, completarLoteForm } from '@/app/actions/produccion';
 
@@ -12,7 +14,15 @@ export const dynamic = 'force-dynamic';
 const selectClass =
   'flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-emerald-500';
 
-export default async function ProduccionPage() {
+export default async function ProduccionPage({
+  searchParams,
+}: {
+  searchParams?: { estado?: string };
+}) {
+  const ESTADOS = ['PENDIENTE', 'EN_PRODUCCION', 'COMPLETADO', 'CANCELADO'] as const;
+  const estadoFiltro = ESTADOS.includes(searchParams?.estado as (typeof ESTADOS)[number])
+    ? (searchParams!.estado as (typeof ESTADOS)[number])
+    : null;
   let recetas: Array<{ id: string; nombre: string }> = [];
   let lotes: Array<{
     id: string;
@@ -31,6 +41,7 @@ export default async function ProduccionPage() {
         orderBy: { nombre: 'asc' },
       });
       lotes = await prisma.loteProduccion.findMany({
+        where: estadoFiltro ? { estado: estadoFiltro } : undefined,
         include: { receta: true },
         orderBy: { createdAt: 'desc' },
       });
@@ -45,6 +56,7 @@ export default async function ProduccionPage() {
     <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
       <div className="mx-auto max-w-6xl space-y-6">
         <DbWarning />
+        <R2Warning />
 
         <header className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
           <div>
@@ -96,13 +108,35 @@ export default async function ProduccionPage() {
         <Card>
           <CardHeader>
             <CardTitle>Lotes de producción</CardTitle>
-            <CardDescription>Estado operativo y rendimiento real</CardDescription>
+            <CardDescription>
+              Estado operativo y rendimiento real
+              {estadoFiltro ? ` · mostrando solo lotes ${estadoFiltro}` : ''}
+            </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 flex flex-wrap gap-2">
+              <Link href="/produccion">
+                <Button type="button" variant={estadoFiltro ? 'outline' : 'default'} size="sm">
+                  Todos
+                </Button>
+              </Link>
+              {ESTADOS.map((estado) => (
+                <Link key={estado} href={`/produccion?estado=${estado}`}>
+                  <Button
+                    type="button"
+                    variant={estadoFiltro === estado ? 'default' : 'outline'}
+                    size="sm"
+                  >
+                    {estado.replace('_', ' ')}
+                  </Button>
+                </Link>
+              ))}
+            </div>
             {lotes.length === 0 ? (
               <p className="text-sm text-slate-500">
-                Aún no hay lotes registrados. Crea la primera orden de trabajo con el
-                formulario de arriba.
+                {estadoFiltro
+                  ? `No hay lotes en estado ${estadoFiltro}.`
+                  : 'Aún no hay lotes registrados. Crea la primera orden de trabajo con el formulario de arriba.'}
               </p>
             ) : (
               <div className="space-y-4">
@@ -175,6 +209,15 @@ export default async function ProduccionPage() {
                           .
                         </p>
                       )}
+
+                      <div className="mt-4">
+                        <ArchivosEntidad
+                          entidad="LOTE"
+                          entidadId={lote.id}
+                          titulo="Fotos y documentos del lote"
+                          descripcion="Fotos del proceso, certificados o documentos del lote, guardados en Cloudflare R2."
+                        />
+                      </div>
                     </div>
                   );
                 })}

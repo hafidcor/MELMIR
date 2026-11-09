@@ -66,6 +66,7 @@ model Receta {
   recetaInsumos      RecetaInsumo[]
   lotesProduccion    LoteProduccion[]
   productosTerminados ProductoTerminado[]
+  ventas             Venta[]
 
   @@map("recetas")
 }
@@ -133,6 +134,52 @@ model ProductoTerminado {
 
   loteProduccion LoteProduccion @relation(fields: [loteProduccionId], references: [id], onDelete: Cascade)
   receta         Receta         @relation(fields: [recetaId], references: [id], onDelete: Restrict)
+  ventas         Venta[]
 
   @@map("productos_terminados")
+}
+
+model Venta {
+  id                  String   @id @default(cuid())
+  fecha               DateTime @default(now())
+  productoTerminadoId String
+  recetaId            String
+  botellasVendidas    Int
+  precioUnitario      Decimal  @db.Decimal(18, 4)
+  total               Decimal  @db.Decimal(18, 4)
+  cliente             String?
+  notas               String?
+  createdAt           DateTime @default(now())
+
+  productoTerminado ProductoTerminado @relation(fields: [productoTerminadoId], references: [id], onDelete: Restrict)
+  receta            Receta            @relation(fields: [recetaId], references: [id], onDelete: Restrict)
+
+  @@map("ventas")
+}
+
+enum EntidadArchivo {
+  RECETA
+  LOTE
+  INSUMO
+  VENTA
+}
+
+// Archivo guardado en Cloudflare R2 (S3-compatible).
+// La entidad se guarda como enum (RECETA/LOTE/INSUMO/VENTA) más el id de
+// la entidad, sin relaciones Prisma, para no acoplar el modelo a entidades
+// que puedan borrarse: al eliminar una entidad sus archivos quedan
+// huérfanos y se pueden limpiar por entidadId.
+model Archivo {
+  id             String         @id @default(cuid())
+  nombreOriginal String
+  clave          String         @unique
+  url            String
+  tipoMime       String
+  tamano         Int
+  entidad        EntidadArchivo
+  entidadId      String
+  createdAt      DateTime       @default(now())
+
+  @@index([entidad, entidadId])
+  @@map("archivos")
 }

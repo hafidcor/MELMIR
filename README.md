@@ -47,12 +47,87 @@ Sistema ERP para gestión de hidromiel con Next.js, Prisma y PostgreSQL.
   Development**. Sin ella, la app despliega y arranca, pero muestra estados
   vacíos con el aviso "Configura DATABASE_URL en Vercel para ver tus datos
   reales".
-- El build (`npm run build` y `vercel-build`) es solo
-  `prisma generate && next build`: **ya no hace `prisma db push` durante el
-  build**, porque eso hacía fallar el despliegue cuando la base no estaba
-  accesible. La sincronización del esquema se hace una sola vez con
-  `npm run db:setup` y los datos iniciales con `npm run seed`.
+- El build (`npm run build` y `vercel-build`) es `scripts/vercel-build.sh`:
+  `prisma generate`; si hay `DATABASE_URL`, hace `prisma db push
+  --accept-data-loss` y `npx tsx prisma/seed.ts` (ambos con tolerancia a
+  fallos, el build continúa aunque fallen) y luego `next build`. Sin
+  `DATABASE_URL` el build solo genera el cliente y compila, y la app
+  muestra estados vacíos con el aviso "Configura DATABASE_URL en Vercel
+  para ver tus datos reales". Cada despliegue con base de datos sincroniza
+  el esquema, así que las tablas nuevas (por ejemplo `archivos`) se crean
+  solas al desplegar.
 - Haz push a `main` para disparar el despliegue automático.
+
+## Archivos en Cloudflare R2 (plan gratis)
+
+MELMIR guarda imágenes y archivos en **Cloudflare R2** (API S3-compatible):
+fotos de recetas, fotos y documentos de lotes, fichas y certificados de
+insumos, y facturas o comprobantes de ventas. Todo se gestiona desde la app:
+cada receta, lote, insumo y venta tiene su sección de archivos (subir,
+abrir/descargar y eliminar), y `/archivos` lista todos los archivos con
+filtro por entidad. Los metadatos quedan en la base de datos (modelo
+Prisma `Archivo`: nombre original, clave en R2, URL pública, tipo MIME,
+tamaño, entidad y entidadId); el contenido vive en R2.
+
+### Configuración en Cloudflare (una sola vez)
+
+1. En el panel de Cloudflare, ve a **R2 Object Storage > Create bucket** y
+   crea un bucket, por ejemplo `melmir-archivos`. Anota su nombre.
+2. En **R2 > Manage R2 API Tokens > Create API Token**, crea un token con
+   permiso **Object Read & Write** sobre ese bucket. Anota el **Access Key
+   ID**, el **Secret Access Key** y el **Account ID** (aparece en la URL del
+   panel de R2 o en la página del bucket). El secreto solo se muestra una
+   vez: guárdalo en un lugar seguro, nunca en el repo.
+3. Activa el acceso público de lectura: en el bucket, **Settings > Public
+   access**, permite el acceso público (o conecta un dominio propio en
+   **Custom Domains**) y anota la **URL pública** (dominio `r2.dev` del
+   bucket, del tipo `https://pub-xxxxxxxxxxxxxxxx.r2.dev`, o tu dominio
+   propio). Sin URL pública, los enlaces de descarga no abrirán el archivo.
+   Alternativa sin acceso público: usar URLs firmadas (no implementado;
+   la app usa la URL pública).
+
+### Variables en Vercel
+
+En el proyecto `melmir`, **Settings > Environment Variables**, para
+**Production, Preview y Development**:
+
+| Variable | Valor |
+| --- | --- |
+| `R2_ACCOUNT_ID` | Account ID de Cloudflare |
+| `R2_ACCESS_KEY_ID` | Access Key ID del token R2 |
+| `R2_SECRET_ACCESS_KEY` | Secret Access Key del token (marcar como **Secret**) |
+| `R2_BUCKET_NAME` | Nombre del bucket, p. ej. `melmir-archivos` |
+| `R2_PUBLIC_URL` | URL pública del bucket, p. ej. `https://pub-xxxxxxxxxxxxxxxx.r2.dev` |
+
+Después de guardarlas, haz un redespliegue para que tomen efecto. En
+local, copia `.env.example` a `.env` y rellena los mismos valores.
+
+Sin estas variables la app sigue funcionando: las páginas muestran el
+aviso "Configura Cloudflare R2 en Vercel para subir archivos" y la subida
+queda desactivada (mismo patrón que `DATABASE_URL`).
+
+### Reglas de subida
+
+- Solo imágenes (JPEG, PNG, WebP, GIF) y PDF.
+- Máximo **5 MB por archivo** (también limitado en `next.config.mjs` con
+  `serverActions.bodySizeLimit: '5mb'`).
+- La validación se hace en el servidor (`app/actions/archivos.ts`).
+- Al eliminar un archivo se borra el objeto de R2 y su registro en la
+  base de datos.
+- Las claves en R2 tienen el formato
+  `melmir/<entidad>/<entidadId>/<fecha>-<aleatorio>-<nombre>`.
+
+### Límites del plan gratis de R2
+
+- **10 GB** de almacenamiento incluidos al mes.
+- **1 millón de operaciones de escritura (Clase A)** y **10 millones de
+  lecturas (Clase B)** al mes.
+- **Sin cargos por salida (egress)**: descargar los archivos no cuesta.
+- Pasados los límites se cobra por uso (ver precios actuales en
+  cloudflare.com); para el volumen de MELMIR el plan gratis es suficiente.
+- R2 no es Cloudflare Images: no hay transformaciones ni redimensionado
+  automático de imágenes; la app sirve el archivo original tal cual se
+  subió.
 
 ## Módulos incluidos
 - Inventario de insumos (tabla real, altas y movimientos de stock)
@@ -61,8 +136,12 @@ Sistema ERP para gestión de hidromiel con Next.js, Prisma y PostgreSQL.
 - Producción y cierre de lotes (completar lote con validación de stock)
 - Producto terminado y stock
 - Precios sugeridos por receta (IEPS 8%, IVA 16%, margen 30%)
-- Historial de movimientos y lotes
-- Dashboard ejecutivo con alertas de stock bajo
+- Ventas de producto terminado (registro de ventas con descuento de stock, precio sugerido y totales)
+- Archivos en Cloudflare R2: fotos y documentos de recetas, lotes, insumos y ventas, con listado general en `/archivos`
+- Historial de movimientos, ventas y lotes
+- Exportación a CSV del inventario y de los movimientos
+- Búsqueda y filtros en Insumos, Historial y Producción
+- Dashboard ejecutivo con alertas de stock bajo y resumen de ventas
 
 ## Mejoras de esta actualización
 - Build a prueba de base de datos: todas las páginas usan
@@ -92,6 +171,55 @@ Sistema ERP para gestión de hidromiel con Next.js, Prisma y PostgreSQL.
   real 1248.3, $10.4 por botella).
 - Navegación móvil visible en pantallas pequeñas y enlace a `/dashboard` en
   el menú. Páginas `app/error.tsx` y `app/not-found.tsx` en español.
+
+## Novedades: archivos en Cloudflare R2
+- **R2 de propósito general (modelo Prisma `Archivo`, `lib/r2.ts`,
+  `app/actions/archivos.ts`, `components/archivos.tsx`)**: sube imágenes
+  (JPEG, PNG, WebP, GIF) y PDF de hasta 5 MB a un bucket R2 con el cliente
+  S3 de AWS (`@aws-sdk/client-s3`). Sirve para recetas, lotes, insumos y
+  ventas: cada receta muestra su primera imagen como foto principal y su
+  sección de archivos; cada lote tiene su sección de archivos; cada insumo
+  la tiene dentro de su editor; cada venta puede recibir archivos desde
+  `/ventas`. La página `/archivos` lista todos los archivos con filtro por
+  entidad, enlace para abrir/descargar y eliminación (borra de R2 y de la
+  base). Sin las variables `R2_*` configuradas, las páginas muestran el
+  aviso "Configura Cloudflare R2 en Vercel para subir archivos" y la
+  subida queda desactivada, sin romper el build ni las páginas. El
+  despliegue en Vercel crea la tabla `archivos` solo con `db push`.
+- **Variables**: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+  `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` y `R2_PUBLIC_URL` (ver
+  `.env.example` y la sección "Archivos en Cloudflare R2" de este README).
+  Pendiente por parte del usuario: crear el bucket y el token en
+  Cloudflare y poner esas variables en Vercel.
+
+## Novedades: ventas, edición de insumos, búsqueda, CSV y dashboard de ventas
+- **Ventas (`/ventas`, modelo Prisma `Venta`)**: cierra el ciclo del ERP.
+  Formulario para registrar una venta eligiendo un lote con stock mayor que 0,
+  con el precio sugerido de Precios como valor por defecto si se deja vacío
+  (costo + IEPS 8% + IVA 16% + margen 30%). Valida cantidad entera mayor que
+  0, precio mayor o igual que 0 y stock suficiente; al vender descuenta las
+  botellas del `ProductoTerminado` en la misma transacción. Tabla de ventas
+  con totales y resumen (botellas vendidas, ingresos, número de ventas).
+  Las ventas también aparecen en el Historial y en el Dashboard.
+- **Editar insumos (`/insumos`)**: cada insumo se puede editar (nombre,
+  categoría, costo unitario y stock mínimo) desde un formulario desplegable;
+  el código y el stock actual no se editan, el stock solo cambia con
+  movimientos. Botón para desactivar/reactivar: la desactivación es el
+  camino para retirar un insumo con movimientos o recetas asociadas, no se
+  pueden borrar insumos. Los insumos inactivos no aparecen en los
+  formularios de movimientos.
+- **Búsqueda y filtros (sin librerías nuevas, con `searchParams`)**:
+  buscador por nombre o código en `/insumos`, buscador por insumo o
+  referencia en `/historial`, y filtro por estado (PENDIENTE / EN_PRODUCCION /
+  COMPLETADO / CANCELADO) en `/produccion`.
+- **Exportar a CSV**: botones en `/insumos` (`/api/insumos/csv`, inventario)
+  y en `/historial` (`/api/historial/csv`, últimos 500 movimientos). Los
+  Route Handlers usan `export const dynamic = 'force-dynamic'` y sin base
+  de datos devuelven solo los encabezados, sin romper el build.
+- **Dashboard mejorado**: mantiene los KPIs actuales y añade resumen de
+  ventas (botellas vendidas, ingresos totales y ventas del mes), gráfico de
+  barras en CSS puro con las ventas por mes de los últimos 6 meses y una
+  lista de ventas recientes.
 
 ## Estructura principal
 - `app/` páginas y listas principales

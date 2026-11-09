@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DbWarning } from '@/components/db-warning';
 import { isDbConfigured, prisma } from '@/lib/prisma';
+import { obtenerResumenVentas, obtenerVentas, type ResumenVentas } from '@/app/actions/ventas';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,19 @@ export default async function DashboardPage() {
   let stockBajo: Array<{ id: string; nombre: string; stockActual: unknown; stockMinimo: unknown; unidadMedida: string }> = [];
   let lotesAbiertos: Array<{ id: string; codigoLote: string; estado: string; botellasEsperadas: number; receta: { nombre: string } }> = [];
   let productos: Array<{ id: string; botellasEnStock: number; costoUnitarioBotella: unknown; receta: { nombre: string }; loteProduccion: { codigoLote: string } }> = [];
+  let resumenVentas: ResumenVentas = {
+    botellasVendidas: 0,
+    ingresosTotales: 0,
+    ventasMes: 0,
+    ingresosMes: 0,
+    ventasCount: 0,
+    porMes: [],
+  };
+  let ventasRecientes: Awaited<ReturnType<typeof obtenerVentas>> = [];
+
+  resumenVentas = await obtenerResumenVentas();
+  ventasRecientes = (await obtenerVentas()).slice(0, 5);
+  const maxBotellasMes = Math.max(1, ...resumenVentas.porMes.map((m) => m.botellas));
 
   if (isDbConfigured()) {
     try {
@@ -88,6 +102,76 @@ export default async function DashboardPage() {
             </CardHeader>
           </Card>
         </section>
+
+        <section className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardDescription>Botellas vendidas</CardDescription>
+              <CardTitle>{resumenVentas.botellasVendidas} bot.</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Ingresos totales por ventas</CardDescription>
+              <CardTitle>${resumenVentas.ingresosTotales.toFixed(2)}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Ventas de este mes</CardDescription>
+              <CardTitle>
+                {resumenVentas.ventasMes} bot. · ${resumenVentas.ingresosMes.toFixed(2)}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+        </section>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <div>
+              <CardTitle>Ventas por mes</CardTitle>
+              <CardDescription>Botellas vendidas en los últimos 6 meses</CardDescription>
+            </div>
+            <Link href="/ventas">
+              <Button variant="outline" size="sm">
+                Ir a ventas
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {resumenVentas.porMes.length === 0 || resumenVentas.ventasCount === 0 ? (
+              <p className="text-sm text-slate-500">
+                Aún no hay ventas registradas. Registra la primera en{' '}
+                <Link href="/ventas" className="font-medium text-emerald-700 underline">
+                  Ventas
+                </Link>
+                .
+              </p>
+            ) : (
+              <div className="flex h-48 items-end gap-2 sm:gap-3">
+                {resumenVentas.porMes.map((mes) => (
+                  <div
+                    key={mes.mes}
+                    className="flex h-full flex-1 flex-col items-center justify-end gap-1"
+                    title={`${mes.mes}: ${mes.botellas} bot. · $${mes.ingresos.toFixed(2)}`}
+                  >
+                    <span className="text-xs font-semibold text-slate-700">
+                      {mes.botellas > 0 ? mes.botellas : ''}
+                    </span>
+                    <div
+                      className="w-full rounded-t-md bg-emerald-600"
+                      style={{ height: `${Math.max(mes.botellas > 0 ? 4 : 0, (mes.botellas / maxBotellasMes) * 100)}%` }}
+                    />
+                    <span className="text-xs capitalize text-slate-500">{mes.etiqueta}</span>
+                    <span className="text-[11px] text-slate-400">
+                      ${mes.ingresos.toFixed(0)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-3">
@@ -189,6 +273,51 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <div>
+              <CardTitle>Ventas recientes</CardTitle>
+              <CardDescription>Últimas ventas de producto terminado</CardDescription>
+            </div>
+            <Link href="/ventas">
+              <Button variant="outline" size="sm">
+                Ir a ventas
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {ventasRecientes.length === 0 ? (
+              <p className="text-sm text-slate-500">Aún no hay ventas registradas.</p>
+            ) : (
+              <div className="space-y-3">
+                {ventasRecientes.map((venta) => (
+                  <div key={venta.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                    <div>
+                      <p className="font-semibold">{venta.receta.nombre}</p>
+                      <p className="text-slate-500">
+                        {venta.productoTerminado.loteProduccion.codigoLote}
+                        {venta.cliente ? ` · ${venta.cliente}` : ''}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold">
+                        {venta.botellasVendidas} bot. · ${Number(venta.total).toFixed(2)}
+                      </p>
+                      <p className="text-slate-500">
+                        {new Date(venta.fecha).toLocaleDateString('es-MX', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </main>
   );

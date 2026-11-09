@@ -2,8 +2,10 @@ import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { DbWarning } from '@/components/db-warning';
 import { obtenerHistorialInsumos, obtenerHistorialProduccion } from '@/app/actions/historial';
+import { obtenerVentas } from '@/app/actions/ventas';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,9 +19,23 @@ function formatFecha(fecha: Date) {
   });
 }
 
-export default async function HistorialPage() {
-  const movimientos = await obtenerHistorialInsumos();
+export default async function HistorialPage({
+  searchParams,
+}: {
+  searchParams?: { q?: string };
+}) {
+  const busqueda = (searchParams?.q ?? '').trim().toLowerCase();
+  const todosMovimientos = await obtenerHistorialInsumos();
   const lotes = await obtenerHistorialProduccion();
+  const ventas = await obtenerVentas();
+
+  const movimientos = busqueda
+    ? todosMovimientos.filter(
+        (m) =>
+          (m.insumo?.nombre ?? '').toLowerCase().includes(busqueda) ||
+          (m.referencia ?? '').toLowerCase().includes(busqueda)
+      )
+    : todosMovimientos;
 
   return (
     <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
@@ -31,27 +47,59 @@ export default async function HistorialPage() {
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
             <h1 className="mt-2 text-3xl font-bold">Historial</h1>
             <p className="mt-1 text-sm text-slate-500">
-              Movimientos de insumos y lotes de producción recientes.
+              Movimientos de insumos, ventas y lotes de producción recientes.
             </p>
           </div>
-          <Link href="/insumos">
-            <Button>Registrar movimiento</Button>
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <a href="/api/historial/csv">
+              <Button variant="outline">Exportar movimientos (CSV)</Button>
+            </a>
+            <Link href="/insumos">
+              <Button>Registrar movimiento</Button>
+            </Link>
+          </div>
         </header>
+
+        <form method="get" className="flex gap-2">
+          <Input
+            name="q"
+            placeholder="Buscar movimientos por insumo o referencia…"
+            defaultValue={searchParams?.q ?? ''}
+          />
+          <Button type="submit" variant="outline">
+            Buscar
+          </Button>
+          {busqueda && (
+            <Link href="/historial">
+              <Button type="button" variant="outline">
+                Limpiar
+              </Button>
+            </Link>
+          )}
+        </form>
 
         <Card>
           <CardHeader>
             <CardTitle>Movimientos de insumos</CardTitle>
-            <CardDescription>Últimos 50 movimientos registrados</CardDescription>
+            <CardDescription>
+              Últimos 50 movimientos registrados
+              {busqueda ? ` que coinciden con «${searchParams?.q}»` : ''}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {movimientos.length === 0 ? (
               <p className="text-sm text-slate-500">
-                Aún no hay movimientos registrados. Puedes registrar uno desde{' '}
-                <Link href="/insumos" className="font-medium text-emerald-700 underline">
-                  Insumos
-                </Link>
-                .
+                {busqueda
+                  ? 'Ningún movimiento coincide con la búsqueda.'
+                  : 'Aún no hay movimientos registrados. Puedes registrar uno desde'}{' '}
+                {!busqueda && (
+                  <>
+                    <Link href="/insumos" className="font-medium text-emerald-700 underline">
+                      Insumos
+                    </Link>
+                    .
+                  </>
+                )}
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -83,6 +131,52 @@ export default async function HistorialPage() {
                             : '—'}
                         </td>
                         <td className="py-2">{movimiento.referencia ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Ventas recientes</CardTitle>
+            <CardDescription>
+              Ventas de producto terminado registradas en{' '}
+              <Link href="/ventas" className="font-medium text-emerald-700 underline">
+                Ventas
+              </Link>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {ventas.length === 0 ? (
+              <p className="text-sm text-slate-500">Aún no hay ventas registradas.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-slate-500">
+                      <th className="py-2 pr-3">Fecha</th>
+                      <th className="py-2 pr-3">Receta</th>
+                      <th className="py-2 pr-3">Lote</th>
+                      <th className="py-2 pr-3">Cliente</th>
+                      <th className="py-2 pr-3 text-right">Botellas</th>
+                      <th className="py-2 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ventas.map((venta) => (
+                      <tr key={venta.id} className="border-b">
+                        <td className="py-2 pr-3 whitespace-nowrap">{formatFecha(venta.fecha)}</td>
+                        <td className="py-2 pr-3 font-medium">{venta.receta.nombre}</td>
+                        <td className="py-2 pr-3">{venta.productoTerminado.loteProduccion.codigoLote}</td>
+                        <td className="py-2 pr-3">{venta.cliente ?? '—'}</td>
+                        <td className="py-2 pr-3 text-right">{venta.botellasVendidas}</td>
+                        <td className="py-2 text-right font-semibold">
+                          ${Number(venta.total).toFixed(2)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
