@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { DbWarning } from '@/components/db-warning';
 import { R2Warning } from '@/components/r2-warning';
 import { subirArchivo } from '@/app/actions/archivos';
+import { obtenerClientes } from '@/app/actions/clientes';
 import { obtenerProductosParaVenta, obtenerVentas, registrarVenta } from '@/app/actions/ventas';
 
 export const dynamic = 'force-dynamic';
@@ -30,10 +31,16 @@ export default async function VentasPage({
 }) {
   const productos = await obtenerProductosParaVenta();
   const todasVentas = await obtenerVentas();
+  const clientes = await obtenerClientes();
   const q = String(searchParams?.q ?? '').trim().toLowerCase();
   const ventas = q
     ? todasVentas.filter((venta) =>
-        [venta.cliente ?? '', venta.receta.nombre, venta.productoTerminado.loteProduccion.codigoLote]
+        [
+          venta.cliente ?? '',
+          venta.clienteRel?.nombre ?? '',
+          venta.receta.nombre,
+          venta.productoTerminado.loteProduccion.codigoLote,
+        ]
           .join(' ')
           .toLowerCase()
           .includes(q)
@@ -128,9 +135,37 @@ export default async function VentasPage({
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Cliente (opcional)
+                    Cliente registrado (opcional)
+                  </label>
+                  <select name="clienteId" className={selectClass} defaultValue="">
+                    <option value="">Sin cliente registrado</option>
+                    {clientes.map((cliente) => (
+                      <option key={cliente.id} value={cliente.id}>
+                        {cliente.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Cliente (texto libre, opcional)
                   </label>
                   <Input name="cliente" placeholder="Nombre del cliente" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Pago
+                  </label>
+                  <select name="estadoPago" className={selectClass} defaultValue="PAGADO">
+                    <option value="PAGADO">Pagado</option>
+                    <option value="PENDIENTE">Pendiente (a crédito)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Abono inicial, si es a crédito (opcional)
+                  </label>
+                  <Input name="montoPagado" type="number" step="0.01" min="0" placeholder="0" />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -190,25 +225,55 @@ export default async function VentasPage({
                       <th className="py-2 pr-3">Cliente</th>
                       <th className="py-2 pr-3 text-right">Botellas</th>
                       <th className="py-2 pr-3 text-right">Precio unit.</th>
-                      <th className="py-2 text-right">Total</th>
+                      <th className="py-2 pr-3 text-right">Total</th>
+                      <th className="py-2 pr-3 text-right">Pago</th>
+                      <th className="py-2 text-right">Margen</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {ventas.map((venta) => (
-                      <tr key={venta.id} className="border-b dark:border-slate-800">
-                        <td className="py-2 pr-3 whitespace-nowrap">{formatFecha(venta.fecha)}</td>
-                        <td className="py-2 pr-3 font-medium">{venta.receta.nombre}</td>
-                        <td className="py-2 pr-3">{venta.productoTerminado.loteProduccion.codigoLote}</td>
-                        <td className="py-2 pr-3">{venta.cliente ?? '—'}</td>
-                        <td className="py-2 pr-3 text-right">{venta.botellasVendidas}</td>
-                        <td className="py-2 pr-3 text-right">
-                          ${Number(venta.precioUnitario).toFixed(2)}
-                        </td>
-                        <td className="py-2 text-right font-semibold">
-                          ${Number(venta.total).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
+                    {ventas.map((venta) => {
+                      const costoUnitario = Number(venta.productoTerminado.costoUnitarioBotella);
+                      const margen =
+                        costoUnitario > 0
+                          ? (Number(venta.precioUnitario) - costoUnitario) * venta.botellasVendidas
+                          : null;
+                      const saldo = Number(venta.total) - Number(venta.montoPagado);
+                      return (
+                        <tr key={venta.id} className="border-b dark:border-slate-800">
+                          <td className="py-2 pr-3 whitespace-nowrap">{formatFecha(venta.fecha)}</td>
+                          <td className="py-2 pr-3 font-medium">{venta.receta.nombre}</td>
+                          <td className="py-2 pr-3">{venta.productoTerminado.loteProduccion.codigoLote}</td>
+                          <td className="py-2 pr-3">{venta.clienteRel?.nombre ?? venta.cliente ?? '—'}</td>
+                          <td className="py-2 pr-3 text-right">{venta.botellasVendidas}</td>
+                          <td className="py-2 pr-3 text-right">
+                            ${Number(venta.precioUnitario).toFixed(2)}
+                          </td>
+                          <td className="py-2 pr-3 text-right font-semibold">
+                            ${Number(venta.total).toFixed(2)}
+                          </td>
+                          <td className="py-2 pr-3 text-right">
+                            {venta.estadoPago === 'PAGADO' ? (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                Pagado
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                Debe ${saldo.toFixed(2)}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 text-right">
+                            {margen === null ? (
+                              <span className="text-slate-400">sin costo</span>
+                            ) : (
+                              <span className={margen >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}>
+                                ${margen.toFixed(2)}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

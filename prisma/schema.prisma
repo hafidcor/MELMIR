@@ -33,6 +33,23 @@ enum EstadoLote {
   CANCELADO
 }
 
+enum EstadoPago {
+  PAGADO
+  PENDIENTE
+}
+
+enum EstadoPedido {
+  PENDIENTE
+  COMPLETADO
+  CANCELADO
+}
+
+enum EstadoEtapa {
+  PENDIENTE
+  EN_CURSO
+  HECHA
+}
+
 model Insumo {
   id           String   @id @default(cuid())
   codigo       String   @unique
@@ -68,6 +85,7 @@ model Receta {
   lotesProduccion    LoteProduccion[]
   productosTerminados ProductoTerminado[]
   ventas             Venta[]
+  pedidos            Pedido[]
 
   @@map("recetas")
 }
@@ -119,6 +137,7 @@ model LoteProduccion {
 
   receta            Receta            @relation(fields: [recetaId], references: [id], onDelete: Restrict)
   productoTerminado ProductoTerminado?
+  etapas            LoteEtapa[]
 
   @@map("lotes_produccion")
 }
@@ -149,13 +168,81 @@ model Venta {
   precioUnitario      Decimal  @db.Decimal(18, 4)
   total               Decimal  @db.Decimal(18, 4)
   cliente             String?
+  clienteId           String?
+  estadoPago          EstadoPago @default(PAGADO)
+  montoPagado         Decimal    @db.Decimal(18, 4) @default(0)
   notas               String?
   createdAt           DateTime @default(now())
 
   productoTerminado ProductoTerminado @relation(fields: [productoTerminadoId], references: [id], onDelete: Restrict)
   receta            Receta            @relation(fields: [recetaId], references: [id], onDelete: Restrict)
+  clienteRel        Cliente?          @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  abonos            Abono[]
 
   @@map("ventas")
+}
+
+model Cliente {
+  id        String   @id @default(cuid())
+  nombre    String
+  telefono  String?
+  notas     String?  @db.Text
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ventas  Venta[]
+  pedidos Pedido[]
+
+  @@map("clientes")
+}
+
+model Abono {
+  id        String   @id @default(cuid())
+  ventaId   String
+  monto     Decimal  @db.Decimal(18, 4)
+  fecha     DateTime @default(now())
+  notas     String?
+  createdAt DateTime @default(now())
+
+  venta Venta @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+
+  @@map("abonos")
+}
+
+model Pedido {
+  id               String       @id @default(cuid())
+  clienteId        String?
+  recetaId         String
+  cantidadBotellas Int
+  estado           EstadoPedido @default(PENDIENTE)
+  fechaPedido      DateTime     @default(now())
+  fechaEntrega     DateTime?
+  notas            String?      @db.Text
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  cliente Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  receta  Receta   @relation(fields: [recetaId], references: [id], onDelete: Restrict)
+
+  @@map("pedidos")
+}
+
+model LoteEtapa {
+  id               String      @id @default(cuid())
+  loteProduccionId String
+  nombre           String
+  orden            Int
+  fechaPlaneada    DateTime?
+  fechaReal        DateTime?
+  estado           EstadoEtapa @default(PENDIENTE)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  loteProduccion LoteProduccion @relation(fields: [loteProduccionId], references: [id], onDelete: Cascade)
+
+  @@unique([loteProduccionId, orden])
+  @@map("lote_etapas")
 }
 
 enum EntidadArchivo {

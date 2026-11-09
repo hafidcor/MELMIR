@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BookOpen,
+  ClipboardList,
+  Contact,
   DatabaseBackup,
   Factory,
   FolderOpen,
@@ -19,6 +21,7 @@ import {
   Tag,
   Users,
   X,
+  Zap,
 } from 'lucide-react';
 
 import { TemaToggle } from '@/components/tema-toggle';
@@ -28,6 +31,7 @@ type NavItem = {
   href: string;
   label: string;
   icono: React.ComponentType<{ className?: string }>;
+  alerta?: number;
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -38,6 +42,9 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/produccion', label: 'Producción', icono: Factory },
   { href: '/precios', label: 'Precios', icono: Tag },
   { href: '/ventas', label: 'Ventas', icono: ShoppingCart },
+  { href: '/pos', label: 'Punto de venta', icono: Zap },
+  { href: '/clientes', label: 'Clientes', icono: Contact },
+  { href: '/pedidos', label: 'Pedidos', icono: ClipboardList },
   { href: '/archivos', label: 'Archivos', icono: FolderOpen },
   { href: '/historial', label: 'Historial', icono: History },
   { href: '/usuarios', label: 'Usuarios', icono: Users },
@@ -48,8 +55,8 @@ const NAV_ITEMS: NavItem[] = [
 const BARRA_MOVIL: NavItem[] = [
   { href: '/', label: 'Inicio', icono: Home },
   { href: '/produccion', label: 'Producción', icono: Factory },
+  { href: '/pos', label: 'Venta', icono: Zap },
   { href: '/ventas', label: 'Ventas', icono: ShoppingCart },
-  { href: '/archivos', label: 'Archivos', icono: FolderOpen },
 ];
 
 function esActivo(pathname: string, href: string): boolean {
@@ -82,6 +89,11 @@ function EnlaceNav({
     >
       <Icono className="h-4 w-4 shrink-0" />
       <span className="whitespace-nowrap">{item.label}</span>
+      {item.alerta !== undefined && item.alerta > 0 && (
+        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white">
+          {item.alerta}
+        </span>
+      )}
     </Link>
   );
 }
@@ -89,12 +101,17 @@ function EnlaceNav({
 export function Navegacion({
   usuario,
   authActiva,
+  alertasStock = 0,
 }: {
   usuario: { nombre: string; rol: string } | null;
   authActiva: boolean;
+  alertasStock?: number;
 }) {
   const pathname = usePathname();
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const itemsNav = NAV_ITEMS.map((item) =>
+    item.href === '/insumos' ? { ...item, alerta: alertasStock } : item
+  );
 
   return (
     <>
@@ -154,7 +171,7 @@ export function Navegacion({
 
         {/* Navegación de escritorio: todos los enlaces con estado activo. */}
         <nav className="mx-auto hidden max-w-7xl items-center gap-1 overflow-x-auto px-4 pb-3 sm:px-6 md:flex lg:px-8">
-          {NAV_ITEMS.map((item) => (
+          {itemsNav.map((item) => (
             <EnlaceNav key={item.href} item={item} activo={esActivo(pathname, item.href)} />
           ))}
         </nav>
@@ -215,7 +232,7 @@ export function Navegacion({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            {NAV_ITEMS.map((item) => (
+            {itemsNav.map((item) => (
               <EnlaceNav
                 key={item.href}
                 item={item}

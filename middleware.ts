@@ -14,6 +14,14 @@ const COOKIE_ABIERTO = 'melmir-auth';
  * Si falta MELMIR_AUTH_SECRET, el JWT se trata como inválido.
  */
 export async function middleware(request: NextRequest) {
+  // Ficha pública de hidromiel (/hidromiel/[id]): sin login. Se marca
+  // con un header para que el layout no muestre el menú del ERP.
+  if (request.nextUrl.pathname.startsWith('/hidromiel')) {
+    const respuesta = NextResponse.next();
+    respuesta.headers.set('x-melmir-public', '1');
+    return respuesta;
+  }
+
   const sesion = request.cookies.get(COOKIE_SESION)?.value;
   const secreto = process.env.MELMIR_AUTH_SECRET;
 
@@ -37,5 +45,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!login|_next/static|_next/image|favicon.ico).*)'],
+  // La ficha pública /hidromiel queda dentro del matcher a propósito:
+  // el middleware la deja pasar y marca el header x-melmir-public para
+  // que el layout no muestre el menú. El manifiesto PWA y sus iconos
+  // quedan fuera para que el navegador los pueda leer sin sesión.
+  matcher: ['/((?!login|manifest.webmanifest|icon\\.svg|_next/static|_next/image|favicon.ico).*)'],
 };

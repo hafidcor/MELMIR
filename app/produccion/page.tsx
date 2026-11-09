@@ -8,6 +8,7 @@ import { R2Warning } from '@/components/r2-warning';
 import { ArchivosEntidad } from '@/components/archivos';
 import { isDbConfigured, prisma } from '@/lib/prisma';
 import { crearLote, completarLoteForm } from '@/app/actions/produccion';
+import { crearEtapasLote, actualizarEtapa } from '@/app/actions/etapas';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,15 @@ export default async function ProduccionPage({
     botellasReales: number;
     costoTotalLote: unknown;
     costoUnitarioPieza: unknown;
-    receta: { nombre: string };
+    receta: { id: string; nombre: string };
+    etapas: Array<{
+      id: string;
+      nombre: string;
+      orden: number;
+      estado: string;
+      fechaPlaneada: Date | null;
+      fechaReal: Date | null;
+    }>;
   }> = [];
 
   if (isDbConfigured()) {
@@ -42,7 +51,7 @@ export default async function ProduccionPage({
       });
       lotes = await prisma.loteProduccion.findMany({
         where: estadoFiltro ? { estado: estadoFiltro } : undefined,
-        include: { receta: true },
+        include: { receta: true, etapas: { orderBy: { orden: 'asc' } } },
         orderBy: { createdAt: 'desc' },
       });
     } catch (error) {
@@ -165,12 +174,94 @@ export default async function ProduccionPage({
                         </div>
                         <div>
                           <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Coste lote</p>
-                          <p className="font-semibold">${Number(lote.costoTotalLote ?? 0).toFixed(2)}</p>
+                          <p className="font-semibold">
+                            {Number(lote.costoTotalLote ?? 0) > 0
+                              ? `$${Number(lote.costoTotalLote).toFixed(2)}`
+                              : 'sin datos de costo'}
+                          </p>
                         </div>
                         <div>
                           <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Costo / pieza</p>
-                          <p className="font-semibold">${Number(lote.costoUnitarioPieza ?? 0).toFixed(2)}</p>
+                          <p className="font-semibold">
+                            {Number(lote.costoUnitarioPieza ?? 0) > 0
+                              ? `$${Number(lote.costoUnitarioPieza).toFixed(2)}`
+                              : 'sin datos de costo'}
+                          </p>
                         </div>
+                      </div>
+
+                      <div className="mt-2">
+                        <Link
+                          href={`/hidromiel/${lote.receta.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm font-medium text-emerald-700 dark:text-emerald-400 underline"
+                        >
+                          Ficha pública y QR de {lote.receta.nombre} →
+                        </Link>
+                      </div>
+
+                      {/* Etapas de producción del lote */}
+                      <div className="mt-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-4">
+                        <p className="text-sm font-semibold">Etapas de producción</p>
+                        {lote.etapas.length === 0 ? (
+                          <form action={crearEtapasLote} className="mt-3">
+                            <input type="hidden" name="loteId" value={lote.id} />
+                            <Button type="submit" variant="outline" size="sm">
+                              Agregar etapas (Fermentación, Trasiego, Clarificación, Embotellado)
+                            </Button>
+                          </form>
+                        ) : (
+                          <div className="mt-3 space-y-3">
+                            {lote.etapas.map((etapa) => (
+                              <form
+                                key={etapa.id}
+                                action={actualizarEtapa}
+                                className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3"
+                              >
+                                <input type="hidden" name="etapaId" value={etapa.id} />
+                                <div className="min-w-32 flex-1">
+                                  <p className="text-sm font-medium">{etapa.nombre}</p>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    {etapa.estado === 'HECHA' && etapa.fechaReal
+                                      ? `Hecha el ${new Date(etapa.fechaReal).toLocaleDateString('es-MX')}`
+                                      : etapa.estado === 'EN_CURSO'
+                                        ? 'En curso'
+                                        : 'Pendiente'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+                                    Fecha planeada
+                                  </label>
+                                  <Input
+                                    name="fechaPlaneada"
+                                    type="date"
+                                    defaultValue={
+                                      etapa.fechaPlaneada
+                                        ? new Date(etapa.fechaPlaneada).toISOString().slice(0, 10)
+                                        : ''
+                                    }
+                                    className="h-9 w-44"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+                                    Estado
+                                  </label>
+                                  <select name="estado" defaultValue={etapa.estado} className={`${selectClass} h-9 w-36`}>
+                                    <option value="PENDIENTE">Pendiente</option>
+                                    <option value="EN_CURSO">En curso</option>
+                                    <option value="HECHA">Hecha</option>
+                                  </select>
+                                </div>
+                                <Button type="submit" size="sm">
+                                  Guardar
+                                </Button>
+                              </form>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {abierto ? (

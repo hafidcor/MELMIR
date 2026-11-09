@@ -103,7 +103,7 @@ export async function crearLote(formData: FormData) {
 
   const codigoLote = `LT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 900 + 100))}`;
 
-  await prisma.loteProduccion.create({
+  const lote = await prisma.loteProduccion.create({
     data: {
       codigoLote,
       recetaId,
@@ -112,10 +112,19 @@ export async function crearLote(formData: FormData) {
       fechaPlanificada: new Date(),
       costoTotalLote: 0,
       costoUnitarioPieza: 0,
+      etapas: {
+        create: [
+          { nombre: 'Fermentación', orden: 1 },
+          { nombre: 'Trasiego', orden: 2 },
+          { nombre: 'Clarificación', orden: 3 },
+          { nombre: 'Embotellado', orden: 4 },
+        ],
+      },
     },
   });
 
   revalidatePath('/produccion');
+  revalidatePath('/dashboard');
   revalidatePath('/');
 }
 

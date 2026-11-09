@@ -6,6 +6,7 @@ import { DbWarning } from '@/components/db-warning';
 import { GraficoBarrasVentas, GraficoDonaLotes, GraficoStockInsumos } from '@/components/graficas';
 import { isDbConfigured, prisma } from '@/lib/prisma';
 import { obtenerResumenVentas, obtenerVentas, type ResumenVentas } from '@/app/actions/ventas';
+import { obtenerProximasEtapas, type EtapaProxima } from '@/app/actions/alertas';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,14 +29,19 @@ export default async function DashboardPage() {
     ventasMes: 0,
     ingresosMes: 0,
     ventasCount: 0,
+    margenTotal: 0,
+    margenMes: 0,
+    ventasSinCosto: 0,
     porMes: [],
   };
   let ventasRecientes: Awaited<ReturnType<typeof obtenerVentas>> = [];
+  let proximasEtapas: EtapaProxima[] = [];
   let insumosTodos: Array<{ id: string; nombre: string; stockActual: unknown; stockMinimo: unknown; unidadMedida: string }> = [];
   let lotesTodos: Array<{ estado: string }> = [];
 
   resumenVentas = await obtenerResumenVentas();
   ventasRecientes = (await obtenerVentas()).slice(0, 5);
+  proximasEtapas = await obtenerProximasEtapas();
 
   if (isDbConfigured()) {
     try {
@@ -90,6 +96,17 @@ export default async function DashboardPage() {
           </p>
         </header>
 
+        {stockBajo.length > 0 && (
+          <Link href="/insumos" className="block">
+            <div className="flex items-start justify-between gap-3 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/60 dark:text-red-200">
+              <p className="font-medium">
+                ⚠️ {stockBajo.length} insumo(s) en stock bajo: {stockBajo.map((i) => i.nombre).join(', ')}. Toca para verlos y reponer.
+              </p>
+              <span className="shrink-0 font-bold">Ver →</span>
+            </div>
+          </Link>
+        )}
+
         <section className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader>
@@ -137,6 +154,68 @@ export default async function DashboardPage() {
                 {resumenVentas.ventasMes} bot. · ${resumenVentas.ingresosMes.toFixed(2)}
               </CardTitle>
             </CardHeader>
+          </Card>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardDescription>Margen de este mes</CardDescription>
+              <CardTitle>${resumenVentas.margenMes.toFixed(2)}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Precio de venta menos costo por botella. Margen total histórico: $
+                {resumenVentas.margenTotal.toFixed(2)}
+                {resumenVentas.ventasSinCosto > 0
+                  ? ` · ${resumenVentas.ventasSinCosto} venta(s) sin costo registrado no se incluyen en el margen.`
+                  : ''}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <div>
+                <CardTitle>Próximas etapas de producción</CardTitle>
+                <CardDescription>Vencidas o que vencen en los próximos 7 días</CardDescription>
+              </div>
+              <Link href="/produccion">
+                <Button variant="outline" size="sm">
+                  Ir a producción
+                </Button>
+              </Link>
+            </CardHeader>
+            <CardContent>
+              {proximasEtapas.length === 0 ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Sin etapas próximas. Asigna fechas planeadas a las etapas en Producción
+                  para que aparezcan aquí.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {proximasEtapas.map((etapa) => (
+                    <div
+                      key={etapa.id}
+                      className={`flex items-center justify-between rounded-lg border px-4 py-2 text-sm ${
+                        etapa.vencida
+                          ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/60'
+                          : 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/60'
+                      }`}
+                    >
+                      <span className="font-medium">
+                        {etapa.nombre} · {etapa.loteCodigo} ({etapa.recetaNombre})
+                      </span>
+                      <span className="font-semibold">
+                        {etapa.vencida ? 'Vencida · ' : ''}
+                        {etapa.fechaPlaneada
+                          ? new Date(etapa.fechaPlaneada).toLocaleDateString('es-MX')
+                          : 'Sin fecha'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
           </Card>
         </section>
 

@@ -1,6 +1,8 @@
 import Link from 'next/link';
 
 import { calculateRecipeCost } from '@/app/lib/costeo';
+import { generarQrDataUrl, urlFichaHidromiel } from '@/lib/qr';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -65,13 +67,15 @@ export default async function RecetasPage({
 
   const recetasConCosto = await Promise.all(
     recetas.map(async (receta) => {
+      const qr = await generarQrDataUrl(urlFichaHidromiel(receta.id));
       try {
         const costo = await calculateRecipeCost(receta.id);
-        return { ...receta, costo };
+        return { ...receta, costo, qr };
       } catch {
         return {
           ...receta,
           costo: { costoLote: 0, costoPorPieza: 0 },
+          qr,
         };
       }
     })
@@ -184,6 +188,32 @@ export default async function RecetasPage({
                       {receta.descripcion}
                     </p>
                   )}
+                  <div className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
+                    <Link href={`/hidromiel/${receta.id}`} target="_blank" rel="noreferrer">
+                      <Image
+                        src={receta.qr}
+                        alt={`Código QR de ${receta.nombre}`}
+                        width={96}
+                        height={96}
+                        unoptimized
+                        className="h-24 w-24 rounded-md"
+                      />
+                    </Link>
+                    <div className="min-w-40 flex-1">
+                      <p className="text-sm font-medium">QR de la etiqueta</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Escanea para ver la ficha pública de esta hidromiel.
+                      </p>
+                      <Link
+                        href={`/hidromiel/${receta.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-sm font-medium text-emerald-700 dark:text-emerald-400 underline"
+                      >
+                        Ver ficha pública e imprimir etiqueta →
+                      </Link>
+                    </div>
+                  </div>
                   {receta.recetaInsumos.length === 0 && (
                     <p className="text-sm text-slate-500 dark:text-slate-400">
                       Esta receta aún no tiene insumos. Agrégalos con el formulario de abajo.

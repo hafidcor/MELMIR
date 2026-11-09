@@ -43,6 +43,9 @@ export default async function HomePage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <Link href="/pos">
+              <Button>Vender (POS)</Button>
+            </Link>
             <Link href="/insumos">
               <Button variant="outline">+ Insumo</Button>
             </Link>

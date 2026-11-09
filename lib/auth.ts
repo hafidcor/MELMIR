@@ -22,7 +22,9 @@ export type Permiso =
   | 'recetas'
   | 'archivos'
   | 'usuarios'
-  | 'respaldos';
+  | 'respaldos'
+  | 'clientes'
+  | 'pedidos';
 
 const PERMISOS: Record<Permiso, RolUsuario[]> = {
   ventas: ['ADMIN', 'VENDEDOR'],
@@ -32,6 +34,8 @@ const PERMISOS: Record<Permiso, RolUsuario[]> = {
   archivos: ['ADMIN', 'OPERADOR', 'VENDEDOR'],
   usuarios: ['ADMIN'],
   respaldos: ['ADMIN'],
+  clientes: ['ADMIN', 'OPERADOR', 'VENDEDOR'],
+  pedidos: ['ADMIN', 'OPERADOR', 'VENDEDOR'],
 };
 
 const DURACION_SESION_SEGUNDOS = 7 * 24 * 3600;

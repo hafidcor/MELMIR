@@ -295,6 +295,49 @@ queda desactivada (mismo patrón que `DATABASE_URL`).
   recetas nuevas (en movimientos ya se filtraban) y el servidor también lo
   rechaza si se intenta por la fuerza.
 
+## Novedades: alertas de stock, margen, clientes, pedidos, etapas, POS, QR y PWA
+
+- **Alertas de stock bajo**: el Dashboard muestra un banner rojo cuando hay
+  insumos en o por debajo de su mínimo, y el menú lleva un contador rojo en
+  «Insumos». Las alertas viven dentro de la app (sin correo ni SMS).
+- **Costo real y margen por botella**: cada lote muestra su costo por botella
+  calculado con los insumos consumidos (cantidad × costo unitario); si no hay
+  consumo registrado se muestra «sin datos de costo» en vez de inventar un
+  número. En Ventas y en el Dashboard se ve el margen por venta (precio −
+  costo) y el margen del mes y total; las ventas sin costo no se incluyen en
+  el margen y se cuentan aparte.
+- **Clientes y cuentas por cobrar (`/clientes`, modelo `Cliente`)**: las
+  ventas se asocian a un cliente y llevan estado de pago (PAGADO o
+  PENDIENTE) con monto pagado y saldo pendiente. En Clientes se ve el saldo
+  de cada uno y se registran abonos (modelo `Abono`); al cubrir el saldo la
+  venta pasa a PAGADO. Las ventas viejas quedaron como PAGADO y sin cliente.
+- **Pedidos anticipados (`/pedidos`, modelo `Pedido`)**: cliente opcional,
+  hidromiel, cantidad de botellas, estado PENDIENTE / COMPLETADO /
+  CANCELADO, fecha de entrega y notas. Las botellas de pedidos pendientes se
+  muestran como «apartadas» junto al stock y no se descuentan hasta que el
+  pedido se convierte en venta (descuenta stock con la lógica de ventas) o
+  se cancela.
+- **Etapas de producción (`/produccion`, modelo `LoteEtapa`)**: cada lote
+  lleva Fermentación, Trasiego, Clarificación y Embotellado, con fecha
+  planeada, fecha real y estado (pendiente / en curso / hecha). El Dashboard
+  muestra las etapas vencidas y las que vencen en los próximos 7 días. Los
+  lotes nuevos crean sus etapas solos; los viejos tienen un botón para
+  agregarlas.
+- **Punto de venta rápido (`/pos`)**: pensado para ferias desde el teléfono:
+  elegir hidromiel, cantidad con botones +/−, total a la vista y registrar
+  la venta en un toque, reutilizando la lógica de ventas (descuento de stock
+  en transacción, cliente opcional, pago pagado o pendiente). No cobra con
+  tarjeta: solo registra la venta.
+- **Códigos QR en etiquetas**: ficha pública sin login en
+  `/hidromiel/[id]` (nombre, descripción, foto principal, estilo, ABV y
+  lotes; sin costos ni datos internos). El QR de esa URL se muestra en el
+  detalle de la receta y del lote, y la ficha incluye una vista de etiqueta
+  imprimible (nombre, lote, fecha y QR).
+- **PWA instalable**: `public/manifest.webmanifest` (nombre MELMIR,
+  theme-color verde esmeralda) e iconos 192/512 y apple-touch-icon
+  generados en el repo. Se puede instalar como app en el teléfono. Sin modo
+  offline en este lote.
+
 ## Estructura principal
 - `app/` páginas y listas principales
 - `app/actions/` server actions

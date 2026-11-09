@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import type { Prisma } from '@prisma/client';
 import { isDbConfigured, prisma } from '@/lib/prisma';
 import { exigirPermiso } from '@/lib/auth';
 import { calcularPrecioVenta } from '@/app/lib/precios';
@@ -66,7 +67,12 @@ export async function obtenerVentas() {
   try {
     return await prisma.venta.findMany({
       orderBy: { fecha: 'desc' },
-      include: { receta: true, productoTerminado: { include: { loteProduccion: true } } },
+      include: {
+        receta: true,
+        clienteRel: true,
+        productoTerminado: { include: { loteProduccion: true } },
+        abonos: { orderBy: { fecha: 'desc' } },
+      },
       take: 100,
     });
   } catch (error) {
@@ -81,12 +87,19 @@ export type ResumenVentas = {
   ventasMes: number;
   ingresosMes: number;
   ventasCount: number;
+  margenTotal: number;
+  margenMes: number;
+  ventasSinCosto: number;
   porMes: Array<{ mes: string; etiqueta: string; botellas: number; ingresos: number }>;
 };
 
 /**
  * Resumen de ventas para el dashboard: totales históricos, ventas del mes
- * en curso y desglose por mes (últimos 6 meses) para el gráfico de barras.
+ * en curso, margen (precio de venta − costo por botella) y desglose por
+ * mes (últimos 6 meses) para el gráfico de barras.
+ * El margen solo se suma cuando el lote tiene costo registrado (costo
+ * unitario mayor que 0); las ventas sin costo se cuentan aparte y no se
+ * inventa un margen para ellas.
  */
 export async function obtenerResumenVentas(): Promise<ResumenVentas> {
   const vacio: ResumenVentas = {
@@ -95,6 +108,9 @@ export async function obtenerResumenVentas(): Promise<ResumenVentas> {
     ventasMes: 0,
     ingresosMes: 0,
     ventasCount: 0,
+    margenTotal: 0,
+    margenMes: 0,
+    ventasSinCosto: 0,
     porMes: [],
   };
 
@@ -105,7 +121,13 @@ export async function obtenerResumenVentas(): Promise<ResumenVentas> {
   try {
     const ventas = await prisma.venta.findMany({
       orderBy: { fecha: 'asc' },
-      select: { fecha: true, botellasVendidas: true, total: true },
+      select: {
+        fecha: true,
+        botellasVendidas: true,
+        total: true,
+        precioUnitario: true,
+        productoTerminado: { select: { costoUnitarioBotella: true } },
+      },
     });
 
     const ahora = new Date();
@@ -115,6 +137,9 @@ export async function obtenerResumenVentas(): Promise<ResumenVentas> {
     let ingresosTotales = 0;
     let ventasMes = 0;
     let ingresosMes = 0;
+    let margenTotal = 0;
+    let margenMes = 0;
+    let ventasSinCosto = 0;
     const porMesMap = new Map<string, { botellas: number; ingresos: number }>();
 
     for (const venta of ventas) {
@@ -125,6 +150,16 @@ export async function obtenerResumenVentas(): Promise<ResumenVentas> {
       if (mes === mesActual) {
         ventasMes += venta.botellasVendidas;
         ingresosMes += total;
+      }
+      const costoUnitario = Number(venta.productoTerminado.costoUnitarioBotella);
+      if (costoUnitario > 0) {
+        const margen = (Number(venta.precioUnitario) - costoUnitario) * venta.botellasVendidas;
+        margenTotal += margen;
+        if (mes === mesActual) {
+          margenMes += margen;
+        }
+      } else {
+        ventasSinCosto += 1;
       }
       const acumulado = porMesMap.get(mes) ?? { botellas: 0, ingresos: 0 };
       acumulado.botellas += venta.botellasVendidas;
@@ -154,6 +189,9 @@ export async function obtenerResumenVentas(): Promise<ResumenVentas> {
       ventasMes,
       ingresosMes: Number(ingresosMes.toFixed(2)),
       ventasCount: ventas.length,
+      margenTotal: Number(margenTotal.toFixed(2)),
+      margenMes: Number(margenMes.toFixed(2)),
+      ventasSinCosto,
       porMes,
     };
   } catch (error) {
@@ -162,54 +200,68 @@ export async function obtenerResumenVentas(): Promise<ResumenVentas> {
   }
 }
 
+export type DatosVenta = {
+  productoTerminadoId: string;
+  botellasVendidas: number;
+  precioUnitario?: number;
+  clienteId?: string | null;
+  clienteTexto?: string | null;
+  estadoPago?: 'PAGADO' | 'PENDIENTE';
+  montoPagado?: number;
+  notas?: string | null;
+};
+
 /**
- * Registra una venta de producto terminado: valida cantidad y precio,
- * rechaza la venta si no hay stock suficiente y descuenta las botellas
- * del lote en la misma transacción.
+ * Núcleo de creación de una venta dentro de una transacción: valida
+ * cantidad y precio, rechaza si no hay stock suficiente, crea la venta y
+ * descuenta las botellas del lote. Lo usan registrarVenta (formulario),
+ * el punto de venta y la conversión de pedidos.
  * Si el precio unitario viene vacío, se usa el precio sugerido de /precios.
+ * Si el estado es PENDIENTE, el monto pagado es el abono inicial (0 por
+ * defecto); si es PAGADO, el monto pagado es el total.
  */
-export async function registrarVenta(formData: FormData) {
-  await exigirPermiso('ventas');
-  const productoTerminadoId = String(formData.get('productoTerminadoId') ?? '').trim();
-  const botellasVendidas = Number(formData.get('botellasVendidas') ?? 0);
-  const precioUnitarioForm = String(formData.get('precioUnitario') ?? '').trim();
-  const precioUnitario = precioUnitarioForm === '' ? NaN : Number(precioUnitarioForm);
-  const cliente = String(formData.get('cliente') ?? '').trim();
-  const notas = String(formData.get('notas') ?? '').trim();
+export async function crearVentaEnTransaccion(
+  tx: Prisma.TransactionClient,
+  datos: DatosVenta
+) {
+  const {
+    productoTerminadoId,
+    botellasVendidas,
+    precioUnitario,
+    clienteId,
+    clienteTexto,
+    estadoPago = 'PAGADO',
+    montoPagado = 0,
+    notas,
+  } = datos;
 
   if (!productoTerminadoId) {
     throw new Error('Selecciona un lote con stock disponible');
   }
-
   if (!Number.isInteger(botellasVendidas) || botellasVendidas <= 0) {
     throw new Error('Las botellas vendidas deben ser un número entero mayor que 0');
   }
-
-  if (precioUnitarioForm !== '' && (!Number.isFinite(precioUnitario) || precioUnitario < 0)) {
+  if (precioUnitario !== undefined && (!Number.isFinite(precioUnitario) || precioUnitario < 0)) {
     throw new Error('El precio unitario debe ser 0 o mayor');
   }
 
-  if (!isDbConfigured()) {
-    throw new Error('Configura DATABASE_URL en Vercel para registrar ventas');
+  const producto = await tx.productoTerminado.findUnique({
+    where: { id: productoTerminadoId },
+    include: { receta: true, loteProduccion: true },
+  });
+
+  if (!producto) {
+    throw new Error('El lote seleccionado no existe');
   }
 
-  await prisma.$transaction(async (tx) => {
-    const producto = await tx.productoTerminado.findUnique({
-      where: { id: productoTerminadoId },
-      include: { receta: true, loteProduccion: true },
-    });
+  if (producto.botellasEnStock < botellasVendidas) {
+    throw new Error(
+      `Stock insuficiente del lote ${producto.loteProduccion.codigoLote}: quedan ${producto.botellasEnStock} botellas`
+    );
+  }
 
-    if (!producto) {
-      throw new Error('El lote seleccionado no existe');
-    }
-
-    if (producto.botellasEnStock < botellasVendidas) {
-      throw new Error(
-        `Stock insuficiente del lote ${producto.loteProduccion.codigoLote}: quedan ${producto.botellasEnStock} botellas`
-      );
-    }
-
-    const precioFinal = Number.isNaN(precioUnitario)
+  const precioFinal =
+    precioUnitario === undefined || Number.isNaN(precioUnitario)
       ? Number(
           calcularPrecioVenta({
             costoUnitario: Number(producto.costoUnitarioBotella),
@@ -220,21 +272,72 @@ export async function registrarVenta(formData: FormData) {
         )
       : precioUnitario;
 
-    await tx.venta.create({
-      data: {
-        productoTerminadoId: producto.id,
-        recetaId: producto.recetaId,
-        botellasVendidas,
-        precioUnitario: precioFinal,
-        total: Number((botellasVendidas * precioFinal).toFixed(2)),
-        cliente: cliente || null,
-        notas: notas || null,
-      },
-    });
+  const total = Number((botellasVendidas * precioFinal).toFixed(2));
+  const pagado =
+    estadoPago === 'PAGADO' ? total : Math.min(Math.max(montoPagado, 0), total);
 
-    await tx.productoTerminado.update({
-      where: { id: producto.id },
-      data: { botellasEnStock: producto.botellasEnStock - botellasVendidas },
+  let nombreCliente: string | null = clienteTexto?.trim() ? clienteTexto.trim() : null;
+  if (clienteId) {
+    const cliente = await tx.cliente.findUnique({ where: { id: clienteId } });
+    if (!cliente) {
+      throw new Error('El cliente seleccionado no existe');
+    }
+    nombreCliente = cliente.nombre;
+  }
+
+  const venta = await tx.venta.create({
+    data: {
+      productoTerminadoId: producto.id,
+      recetaId: producto.recetaId,
+      botellasVendidas,
+      precioUnitario: precioFinal,
+      total,
+      cliente: nombreCliente,
+      clienteId: clienteId || null,
+      estadoPago,
+      montoPagado: pagado,
+      notas: notas?.trim() ? notas.trim() : null,
+    },
+  });
+
+  await tx.productoTerminado.update({
+    where: { id: producto.id },
+    data: { botellasEnStock: producto.botellasEnStock - botellasVendidas },
+  });
+
+  return venta;
+}
+
+/**
+ * Registra una venta de producto terminado desde el formulario de ventas.
+ */
+export async function registrarVenta(formData: FormData) {
+  await exigirPermiso('ventas');
+  const productoTerminadoId = String(formData.get('productoTerminadoId') ?? '').trim();
+  const botellasVendidas = Number(formData.get('botellasVendidas') ?? 0);
+  const precioUnitarioForm = String(formData.get('precioUnitario') ?? '').trim();
+  const precioUnitario = precioUnitarioForm === '' ? undefined : Number(precioUnitarioForm);
+  const clienteId = String(formData.get('clienteId') ?? '').trim() || null;
+  const cliente = String(formData.get('cliente') ?? '').trim();
+  const estadoPagoForm = String(formData.get('estadoPago') ?? 'PAGADO').trim();
+  const estadoPago: 'PAGADO' | 'PENDIENTE' = estadoPagoForm === 'PENDIENTE' ? 'PENDIENTE' : 'PAGADO';
+  const montoPagado = Number(formData.get('montoPagado') ?? 0);
+  const notas = String(formData.get('notas') ?? '').trim();
+
+  if (!isDbConfigured()) {
+    throw new Error('Configura DATABASE_URL en Vercel para registrar ventas');
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await crearVentaEnTransaccion(tx, {
+      productoTerminadoId,
+      botellasVendidas,
+      precioUnitario,
+      clienteId,
+      clienteTexto: cliente || null,
+      estadoPago,
+      montoPagado: Number.isFinite(montoPagado) ? montoPagado : 0,
+      notas: notas || null,
     });
   });
 
@@ -242,5 +345,8 @@ export async function registrarVenta(formData: FormData) {
   revalidatePath('/dashboard');
   revalidatePath('/historial');
   revalidatePath('/precios');
+  revalidatePath('/clientes');
+  revalidatePath('/pedidos');
+  revalidatePath('/pos');
   revalidatePath('/');
 }
