@@ -1,11 +1,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FormularioEliminarArchivo, FormularioSubidaArchivo } from '@/components/formulario-archivo';
 import { isDbConfigured, prisma } from '@/lib/prisma';
-import { isR2Configured } from '@/lib/r2';
-import { eliminarArchivo, subirArchivo } from '@/app/actions/archivos';
+import { MAX_ARCHIVO_BYTES, isR2Configured } from '@/lib/r2';
 
 export type EntidadArchivoUI = 'RECETA' | 'LOTE' | 'INSUMO' | 'VENTA';
 
@@ -15,7 +14,7 @@ export type ArchivoListado = {
   url: string;
   tipoMime: string;
   tamano: number;
-  entidad: string;
+  entidad: EntidadArchivoUI;
   entidadId: string;
   createdAt: Date;
 };
@@ -58,8 +57,11 @@ function esImagen(tipoMime: string): boolean {
 
 /**
  * Lista los archivos de una entidad con su enlace de descarga y la acción
- * para eliminarlos, más el formulario de subida (imágenes y PDF, máx. 5 MB).
+ * para eliminarlos, más el formulario de subida (imágenes y PDF, máx. 4 MB).
  * Sin R2 configurado muestra el aviso y desactiva la subida, sin romper.
+ * La subida y el borrado usan componentes cliente con useFormState para
+ * que el éxito o el error se vean en la página (antes un fallo rompía
+ * toda la página con el error boundary y parecía que el botón no hacía nada).
  */
 export async function ArchivosEntidad({
   entidad,
@@ -82,33 +84,12 @@ export async function ArchivosEntidad({
         <CardDescription>{descripcion}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form
-          action={subirArchivo}
-          encType="multipart/form-data"
-          className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-3"
-        >
-          <input type="hidden" name="entidad" value={entidad} />
-          <input type="hidden" name="entidadId" value={entidadId} />
-          <div className="min-w-52 flex-1">
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-              Subir archivo
-            </label>
-            <input
-              type="file"
-              name="archivo"
-              accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
-              disabled={!r2Listo}
-              required
-              className="block w-full text-sm text-slate-600 dark:text-slate-400 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700 disabled:opacity-50"
-            />
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Imágenes (JPEG, PNG, WebP, GIF) y PDF, máximo 5 MB por archivo.
-            </p>
-          </div>
-          <Button type="submit" size="sm" disabled={!r2Listo}>
-            Subir a R2
-          </Button>
-        </form>
+        <FormularioSubidaArchivo
+          entidad={entidad}
+          entidadId={entidadId}
+          r2Listo={r2Listo}
+          maxBytes={MAX_ARCHIVO_BYTES}
+        />
 
         {archivos.length === 0 ? (
           <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -151,14 +132,11 @@ export async function ArchivosEntidad({
                     {new Date(archivo.createdAt).toLocaleDateString('es-MX')}
                   </p>
                 </div>
-                <form action={eliminarArchivo}>
-                  <input type="hidden" name="archivoId" value={archivo.id} />
-                  <input type="hidden" name="entidad" value={entidad} />
-                  <input type="hidden" name="entidadId" value={entidadId} />
-                  <Button type="submit" variant="outline" size="sm">
-                    Eliminar
-                  </Button>
-                </form>
+                <FormularioEliminarArchivo
+                  archivoId={archivo.id}
+                  entidad={entidad}
+                  entidadId={entidadId}
+                />
               </li>
             ))}
           </ul>

@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { DbWarning } from '@/components/db-warning';
 import { R2Warning } from '@/components/r2-warning';
-import { subirArchivo } from '@/app/actions/archivos';
+import { FormularioSubidaArchivo } from '@/components/formulario-archivo';
 import { obtenerClientes } from '@/app/actions/clientes';
 import { obtenerProductosParaVenta, obtenerVentas, registrarVenta } from '@/app/actions/ventas';
+import { MAX_ARCHIVO_BYTES, isR2Configured } from '@/lib/r2';
 
 export const dynamic = 'force-dynamic';
 
@@ -299,43 +300,15 @@ export default async function VentasPage({
                 Aún no hay ventas a las que adjuntar archivos.
               </p>
             ) : (
-              <form
-                action={subirArchivo}
-                encType="multipart/form-data"
-                className="flex flex-wrap items-end gap-3"
-              >
-                <input type="hidden" name="entidad" value="VENTA" />
-                <div className="min-w-56 flex-1">
-                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Venta</label>
-                  <select name="entidadId" className={selectClass} defaultValue="" required>
-                    <option value="" disabled>
-                      Selecciona una venta
-                    </option>
-                    {ventas.map((venta) => (
-                      <option key={venta.id} value={venta.id}>
-                        {formatFecha(venta.fecha)} · {venta.receta.nombre} ·{' '}
-                        {venta.productoTerminado.loteProduccion.codigoLote} ·{' '}
-                        {venta.botellasVendidas} bot.
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="min-w-52 flex-1">
-                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Archivo (imagen o PDF, máx. 5 MB)
-                  </label>
-                  <input
-                    type="file"
-                    name="archivo"
-                    accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
-                    required
-                    className="block w-full text-sm text-slate-600 dark:text-slate-400 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
-                  />
-                </div>
-                <Button type="submit" size="sm">
-                  Subir a R2
-                </Button>
-              </form>
+              <FormularioSubidaArchivo
+                entidad="VENTA"
+                opcionesEntidadId={ventas.map((venta) => ({
+                  id: venta.id,
+                  etiqueta: `${formatFecha(venta.fecha)} · ${venta.receta.nombre} · ${venta.productoTerminado.loteProduccion.codigoLote} · ${venta.botellasVendidas} bot.`,
+                }))}
+                r2Listo={isR2Configured()}
+                maxBytes={MAX_ARCHIVO_BYTES}
+              />
             )}
           </CardContent>
         </Card>

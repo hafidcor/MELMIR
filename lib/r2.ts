@@ -17,7 +17,15 @@ import {
  * de romper: mismo patrón que DATABASE_URL / isDbConfigured().
  */
 
-export const MAX_ARCHIVO_BYTES = 5 * 1024 * 1024; // 5 MB
+/**
+ * Tamaño máximo por archivo: 4 MB. Vercel rechaza con error 413 los
+ * cuerpos de petición mayores de ~4.5 MB en funciones serverless, así
+ * que el límite de la app debe quedar por debajo de ese tope y el
+ * formulario valida el tamaño antes de enviar (ver
+ * components/formulario-archivo.tsx). next.config.mjs ya sube el límite
+ * de las server actions a 5 MB; este tope de 4 MB es el que se anuncia.
+ */
+export const MAX_ARCHIVO_BYTES = 4 * 1024 * 1024; // 4 MB
 
 /** Prefijo de los respaldos de la base de datos dentro del bucket R2. */
 export const PREFIJO_RESPALDOS = 'melmir/respaldos/';

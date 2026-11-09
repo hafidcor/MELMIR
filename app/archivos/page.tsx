@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DbWarning } from '@/components/db-warning';
 import { R2Warning } from '@/components/r2-warning';
+import { FormularioEliminarArchivo } from '@/components/formulario-archivo';
 import { obtenerArchivos } from '@/components/archivos';
-import { eliminarArchivo } from '@/app/actions/archivos';
 
 export const dynamic = 'force-dynamic';
 
@@ -132,14 +132,11 @@ export default async function ArchivosPage({
                         {new Date(archivo.createdAt).toLocaleDateString('es-MX')}
                       </p>
                     </div>
-                    <form action={eliminarArchivo}>
-                      <input type="hidden" name="archivoId" value={archivo.id} />
-                      <input type="hidden" name="entidad" value={archivo.entidad} />
-                      <input type="hidden" name="entidadId" value={archivo.entidadId} />
-                      <Button type="submit" variant="outline" size="sm">
-                        Eliminar
-                      </Button>
-                    </form>
+                    <FormularioEliminarArchivo
+                      archivoId={archivo.id}
+                      entidad={archivo.entidad}
+                      entidadId={archivo.entidadId}
+                    />
                   </li>
                 ))}
               </ul>
