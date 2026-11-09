@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { isDbConfigured, prisma } from '@/lib/prisma';
+import { exigirPermiso } from '@/lib/auth';
 import {
   MAX_ARCHIVO_BYTES,
   TIPOS_PERMITIDOS,
@@ -35,6 +36,7 @@ function validarEntidad(valor: string): Entidad {
  * Solo imágenes (JPEG, PNG, WebP, GIF) y PDF, máximo 5 MB por archivo.
  */
 export async function subirArchivo(formData: FormData) {
+  await exigirPermiso('archivos');
   const entidad = validarEntidad(String(formData.get('entidad') ?? ''));
   const entidadId = String(formData.get('entidadId') ?? '').trim();
   const archivo = formData.get('archivo');
@@ -106,6 +108,7 @@ export async function subirArchivo(formData: FormData) {
  * su registro en la base de datos, para no dejar registros huérfanos.
  */
 export async function eliminarArchivo(formData: FormData) {
+  await exigirPermiso('archivos');
   const archivoId = String(formData.get('archivoId') ?? '').trim();
   const entidad = validarEntidad(String(formData.get('entidad') ?? ''));
   const entidadId = String(formData.get('entidadId') ?? '').trim();

@@ -10,7 +10,7 @@ export function R2Warning() {
   }
 
   return (
-    <div className="rounded-xl border border-sky-300 bg-sky-50 p-4 text-sm text-sky-900">
+    <div className="rounded-xl border border-sky-300 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/60 p-4 text-sm text-sky-900 dark:text-sky-200">
       <p className="font-semibold">Archivos en Cloudflare R2 no configurados</p>
       <p className="mt-1">
         Configura Cloudflare R2 en Vercel (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,

@@ -45,15 +45,15 @@ export default async function ArchivosPage({
   const archivos = await obtenerArchivos(filtro ?? undefined);
 
   return (
-    <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
+    <main className="min-h-screen bg-slate-100 dark:bg-slate-950 p-6 text-slate-900 dark:text-slate-100">
       <div className="mx-auto max-w-6xl space-y-6">
         <DbWarning />
         <R2Warning />
 
         <header>
-          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-400">MELMIR</p>
           <h1 className="mt-2 text-3xl font-bold">Archivos</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Fotos y documentos guardados en Cloudflare R2, de recetas, lotes,
             insumos y ventas.
           </p>
@@ -90,7 +90,7 @@ export default async function ArchivosPage({
             </div>
 
             {archivos.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Sube fotos o documentos desde una receta, un lote, un insumo o
                 una venta: aparecen aquí y en su entidad.
               </p>
@@ -99,7 +99,7 @@ export default async function ArchivosPage({
                 {archivos.map((archivo) => (
                   <li
                     key={archivo.id}
-                    className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm"
+                    className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-sm"
                   >
                     {archivo.tipoMime.startsWith('image/') ? (
                       <Link href={archivo.url} target="_blank" rel="noreferrer">
@@ -113,7 +113,7 @@ export default async function ArchivosPage({
                         />
                       </Link>
                     ) : (
-                      <span className="flex h-16 w-16 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-600">
+                      <span className="flex h-16 w-16 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300">
                         PDF
                       </span>
                     )}
@@ -122,11 +122,11 @@ export default async function ArchivosPage({
                         href={archivo.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="font-medium text-emerald-700 underline"
+                        className="font-medium text-emerald-700 dark:text-emerald-400 underline"
                       >
                         {archivo.nombreOriginal}
                       </Link>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         {ETIQUETAS[archivo.entidad] ?? archivo.entidad} ·{' '}
                         {archivo.tipoMime} · {formatoTamano(archivo.tamano)} ·{' '}
                         {new Date(archivo.createdAt).toLocaleDateString('es-MX')}

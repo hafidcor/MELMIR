@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DbWarning } from '@/components/db-warning';
+import { GraficoBarrasVentas, GraficoDonaLotes, GraficoStockInsumos } from '@/components/graficas';
 import { isDbConfigured, prisma } from '@/lib/prisma';
 import { obtenerResumenVentas, obtenerVentas, type ResumenVentas } from '@/app/actions/ventas';
 
@@ -30,10 +31,11 @@ export default async function DashboardPage() {
     porMes: [],
   };
   let ventasRecientes: Awaited<ReturnType<typeof obtenerVentas>> = [];
+  let insumosTodos: Array<{ id: string; nombre: string; stockActual: unknown; stockMinimo: unknown; unidadMedida: string }> = [];
+  let lotesTodos: Array<{ estado: string }> = [];
 
   resumenVentas = await obtenerResumenVentas();
   ventasRecientes = (await obtenerVentas()).slice(0, 5);
-  const maxBotellasMes = Math.max(1, ...resumenVentas.porMes.map((m) => m.botellas));
 
   if (isDbConfigured()) {
     try {
@@ -55,6 +57,8 @@ export default async function DashboardPage() {
       totalRecetas = recetas;
       totalLotes = lotes.length;
       stockFinal = productoTerminado._sum.botellasEnStock ?? 0;
+      insumosTodos = insumos;
+      lotesTodos = lotes;
       stockBajo = insumos.filter((i) => Number(i.stockActual) <= Number(i.stockMinimo));
       lotesAbiertos = lotes.filter((l) => l.estado === 'PENDIENTE' || l.estado === 'EN_PRODUCCION');
       productos = productosTerminados;
@@ -63,15 +67,25 @@ export default async function DashboardPage() {
     }
   }
 
+  const insumosParaGrafico = insumosTodos.map((i) => ({
+    nombre: i.nombre,
+    stock: Number(i.stockActual),
+    minimo: Number(i.stockMinimo),
+    unidad: i.unidadMedida,
+  }));
+  const lotesPorEstado = (['PENDIENTE', 'EN_PRODUCCION', 'COMPLETADO', 'CANCELADO'] as const).map(
+    (estado) => ({ estado, cantidad: lotesTodos.filter((l) => l.estado === estado).length })
+  );
+
   return (
-    <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
+    <main className="min-h-screen bg-slate-100 dark:bg-slate-950 p-6 text-slate-900 dark:text-slate-100">
       <div className="mx-auto max-w-6xl space-y-6">
         <DbWarning />
 
         <header>
-          <p className="text-sm uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-400">MELMIR</p>
           <h1 className="mt-2 text-3xl font-bold">Dashboard ejecutivo</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Lo que necesita atención hoy: stock, lotes abiertos y producto terminado.
           </p>
         </header>
@@ -139,37 +153,7 @@ export default async function DashboardPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            {resumenVentas.porMes.length === 0 || resumenVentas.ventasCount === 0 ? (
-              <p className="text-sm text-slate-500">
-                Aún no hay ventas registradas. Registra la primera en{' '}
-                <Link href="/ventas" className="font-medium text-emerald-700 underline">
-                  Ventas
-                </Link>
-                .
-              </p>
-            ) : (
-              <div className="flex h-48 items-end gap-2 sm:gap-3">
-                {resumenVentas.porMes.map((mes) => (
-                  <div
-                    key={mes.mes}
-                    className="flex h-full flex-1 flex-col items-center justify-end gap-1"
-                    title={`${mes.mes}: ${mes.botellas} bot. · $${mes.ingresos.toFixed(2)}`}
-                  >
-                    <span className="text-xs font-semibold text-slate-700">
-                      {mes.botellas > 0 ? mes.botellas : ''}
-                    </span>
-                    <div
-                      className="w-full rounded-t-md bg-emerald-600"
-                      style={{ height: `${Math.max(mes.botellas > 0 ? 4 : 0, (mes.botellas / maxBotellasMes) * 100)}%` }}
-                    />
-                    <span className="text-xs capitalize text-slate-500">{mes.etiqueta}</span>
-                    <span className="text-[11px] text-slate-400">
-                      ${mes.ingresos.toFixed(0)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <GraficoBarrasVentas datos={resumenVentas.porMes} />
           </CardContent>
         </Card>
 
@@ -187,7 +171,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             {stockBajo.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 No hay insumos en stock bajo. Si la base de datos no está configurada, aquí
                 aparecerán las alertas cuando haya datos.
               </p>
@@ -196,16 +180,26 @@ export default async function DashboardPage() {
                 {stockBajo.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm"
+                    className="flex items-center justify-between rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/60 px-4 py-2 text-sm"
                   >
                     <span className="font-medium">{item.nombre}</span>
-                    <span className="font-semibold text-red-700">
+                    <span className="font-semibold text-red-700 dark:text-red-300">
                       {Number(item.stockActual)} / mín. {Number(item.stockMinimo)} {item.unidadMedida}
                     </span>
                   </div>
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Stock de insumos</CardTitle>
+            <CardDescription>Stock actual frente al stock mínimo de cada insumo</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GraficoStockInsumos datos={insumosParaGrafico} />
           </CardContent>
         </Card>
 
@@ -217,18 +211,18 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent>
               {lotesAbiertos.length === 0 ? (
-                <p className="text-sm text-slate-500">No hay lotes abiertos.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">No hay lotes abiertos.</p>
               ) : (
                 <div className="space-y-3">
                   {lotesAbiertos.map((lote) => (
-                    <div key={lote.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                    <div key={lote.id} className="flex items-center justify-between border-b dark:border-slate-800 pb-2 text-sm">
                       <div>
                         <p className="font-semibold">{lote.codigoLote}</p>
-                        <p className="text-slate-500">{lote.receta.nombre}</p>
+                        <p className="text-slate-500 dark:text-slate-400">{lote.receta.nombre}</p>
                       </div>
                       <div className="text-right">
                         <p>{lote.estado}</p>
-                        <p className="text-slate-500">{lote.botellasEsperadas} bot. esperadas</p>
+                        <p className="text-slate-500 dark:text-slate-400">{lote.botellasEsperadas} bot. esperadas</p>
                       </div>
                     </div>
                   ))}
@@ -251,18 +245,18 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent>
               {productos.length === 0 ? (
-                <p className="text-sm text-slate-500">Aún no hay producto terminado en stock.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Aún no hay producto terminado en stock.</p>
               ) : (
                 <div className="space-y-3">
                   {productos.slice(0, 8).map((producto) => (
-                    <div key={producto.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                    <div key={producto.id} className="flex items-center justify-between border-b dark:border-slate-800 pb-2 text-sm">
                       <div>
                         <p className="font-semibold">{producto.receta.nombre}</p>
-                        <p className="text-slate-500">{producto.loteProduccion.codigoLote}</p>
+                        <p className="text-slate-500 dark:text-slate-400">{producto.loteProduccion.codigoLote}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold">{producto.botellasEnStock} bot.</p>
-                        <p className="text-slate-500">
+                        <p className="text-slate-500 dark:text-slate-400">
                           ${Number(producto.costoUnitarioBotella).toFixed(2)} c/u
                         </p>
                       </div>
@@ -273,6 +267,16 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Lotes por estado</CardTitle>
+            <CardDescription>Distribución de lotes según su estado</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GraficoDonaLotes datos={lotesPorEstado} />
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-3">
@@ -288,14 +292,14 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             {ventasRecientes.length === 0 ? (
-              <p className="text-sm text-slate-500">Aún no hay ventas registradas.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Aún no hay ventas registradas.</p>
             ) : (
               <div className="space-y-3">
                 {ventasRecientes.map((venta) => (
-                  <div key={venta.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                  <div key={venta.id} className="flex items-center justify-between border-b dark:border-slate-800 pb-2 text-sm">
                     <div>
                       <p className="font-semibold">{venta.receta.nombre}</p>
-                      <p className="text-slate-500">
+                      <p className="text-slate-500 dark:text-slate-400">
                         {venta.productoTerminado.loteProduccion.codigoLote}
                         {venta.cliente ? ` · ${venta.cliente}` : ''}
                       </p>
@@ -304,7 +308,7 @@ export default async function DashboardPage() {
                       <p className="font-semibold">
                         {venta.botellasVendidas} bot. · ${Number(venta.total).toFixed(2)}
                       </p>
-                      <p className="text-slate-500">
+                      <p className="text-slate-500 dark:text-slate-400">
                         {new Date(venta.fecha).toLocaleDateString('es-MX', {
                           day: '2-digit',
                           month: '2-digit',

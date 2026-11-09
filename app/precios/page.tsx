@@ -67,14 +67,14 @@ export default async function PreciosPage() {
   );
 
   return (
-    <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
+    <main className="min-h-screen bg-slate-100 dark:bg-slate-950 p-6 text-slate-900 dark:text-slate-100">
       <div className="mx-auto max-w-6xl space-y-6">
         <DbWarning />
 
         <header>
-          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-400">MELMIR</p>
           <h1 className="mt-2 text-3xl font-bold">Precios</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Precio sugerido por botella: costo + IEPS 8% + IVA 16% + margen 30%.
           </p>
         </header>
@@ -89,9 +89,9 @@ export default async function PreciosPage() {
           </CardHeader>
           <CardContent>
             {recetasConPrecio.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Aún no hay recetas para calcular precios. Crea una en{' '}
-                <Link href="/recetas" className="font-medium text-emerald-700 underline">
+                <Link href="/recetas" className="font-medium text-emerald-700 dark:text-emerald-400 underline">
                   Recetas
                 </Link>
                 .
@@ -99,17 +99,17 @@ export default async function PreciosPage() {
             ) : (
               <div className="space-y-4">
                 {recetasConPrecio.map((receta) => (
-                  <div key={receta.id} className="rounded-lg border border-slate-200 bg-white p-4">
+                  <div key={receta.id} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="font-semibold">{receta.nombre}</p>
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
                           {receta.estilo} · {receta.rendimientoBotellas} botellas por lote
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs uppercase text-slate-500">Precio sugerido</p>
-                        <p className="text-2xl font-bold text-emerald-700">
+                        <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Precio sugerido</p>
+                        <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
                           ${receta.precio.precioFinal.toFixed(2)}
                         </p>
                       </div>
@@ -117,23 +117,23 @@ export default async function PreciosPage() {
 
                     <div className="mt-4 grid gap-3 text-sm md:grid-cols-5">
                       <div>
-                        <p className="text-xs uppercase text-slate-500">Costo del lote</p>
+                        <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Costo del lote</p>
                         <p className="font-semibold">${receta.costoLote.toFixed(2)}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase text-slate-500">Costo / pieza</p>
+                        <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Costo / pieza</p>
                         <p className="font-semibold">${receta.costoPorPieza.toFixed(2)}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase text-slate-500">IEPS 8%</p>
+                        <p className="text-xs uppercase text-slate-500 dark:text-slate-400">IEPS 8%</p>
                         <p className="font-semibold">${receta.precio.impuestoIEPS.toFixed(2)}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase text-slate-500">IVA 16%</p>
+                        <p className="text-xs uppercase text-slate-500 dark:text-slate-400">IVA 16%</p>
                         <p className="font-semibold">${receta.precio.impuestoIva.toFixed(2)}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase text-slate-500">Margen 30%</p>
+                        <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Margen 30%</p>
                         <p className="font-semibold">${receta.precio.ganancia.toFixed(2)}</p>
                       </div>
                     </div>
@@ -160,7 +160,7 @@ export default async function PreciosPage() {
           </CardHeader>
           <CardContent>
             {productos.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Aún no hay producto terminado en stock. Completa un lote en Producción para
                 verlo aquí.
               </p>
@@ -168,7 +168,7 @@ export default async function PreciosPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-slate-500">
+                    <tr className="border-b dark:border-slate-800 text-left text-slate-500 dark:text-slate-400">
                       <th className="py-2 pr-3">Receta</th>
                       <th className="py-2 pr-3">Lote</th>
                       <th className="py-2 pr-3 text-right">Botellas</th>
@@ -186,12 +186,12 @@ export default async function PreciosPage() {
                         margen: MARGEN,
                       });
                       return (
-                        <tr key={producto.id} className="border-b">
+                        <tr key={producto.id} className="border-b dark:border-slate-800">
                           <td className="py-2 pr-3 font-medium">{producto.receta.nombre}</td>
                           <td className="py-2 pr-3">{producto.loteProduccion.codigoLote}</td>
                           <td className="py-2 pr-3 text-right">{producto.botellasEnStock}</td>
                           <td className="py-2 pr-3 text-right">${costoUnitario.toFixed(2)}</td>
-                          <td className="py-2 text-right font-semibold text-emerald-700">
+                          <td className="py-2 text-right font-semibold text-emerald-700 dark:text-emerald-400">
                             ${precio.precioFinal.toFixed(2)}
                           </td>
                         </tr>

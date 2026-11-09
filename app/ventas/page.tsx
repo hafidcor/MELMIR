@@ -11,7 +11,7 @@ import { obtenerProductosParaVenta, obtenerVentas, registrarVenta } from '@/app/
 export const dynamic = 'force-dynamic';
 
 const selectClass =
-  'flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-emerald-500';
+  'flex h-10 w-full rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-slate-100 dark:ring-offset-slate-950';
 
 function formatFecha(fecha: Date) {
   return new Date(fecha).toLocaleString('es-MX', {
@@ -23,23 +23,36 @@ function formatFecha(fecha: Date) {
   });
 }
 
-export default async function VentasPage() {
+export default async function VentasPage({
+  searchParams,
+}: {
+  searchParams?: { q?: string };
+}) {
   const productos = await obtenerProductosParaVenta();
-  const ventas = await obtenerVentas();
+  const todasVentas = await obtenerVentas();
+  const q = String(searchParams?.q ?? '').trim().toLowerCase();
+  const ventas = q
+    ? todasVentas.filter((venta) =>
+        [venta.cliente ?? '', venta.receta.nombre, venta.productoTerminado.loteProduccion.codigoLote]
+          .join(' ')
+          .toLowerCase()
+          .includes(q)
+      )
+    : todasVentas;
 
-  const botellasVendidas = ventas.reduce((suma, venta) => suma + venta.botellasVendidas, 0);
-  const ingresosTotales = ventas.reduce((suma, venta) => suma + Number(venta.total), 0);
+  const botellasVendidas = todasVentas.reduce((suma, venta) => suma + venta.botellasVendidas, 0);
+  const ingresosTotales = todasVentas.reduce((suma, venta) => suma + Number(venta.total), 0);
 
   return (
-    <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
+    <main className="min-h-screen bg-slate-100 dark:bg-slate-950 p-6 text-slate-900 dark:text-slate-100">
       <div className="mx-auto max-w-7xl space-y-6">
         <DbWarning />
         <R2Warning />
 
         <header>
-          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-400">MELMIR</p>
           <h1 className="mt-2 text-3xl font-bold">Ventas</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Venta de producto terminado: al vender se descuentan las botellas del lote.
           </p>
         </header>
@@ -60,7 +73,7 @@ export default async function VentasPage() {
           <Card>
             <CardHeader>
               <CardDescription>Ventas registradas</CardDescription>
-              <CardTitle>{ventas.length}</CardTitle>
+              <CardTitle>{todasVentas.length}</CardTitle>
             </CardHeader>
           </Card>
         </section>
@@ -75,9 +88,9 @@ export default async function VentasPage() {
           </CardHeader>
           <CardContent>
             {productos.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 No hay producto terminado en stock para vender. Completa un lote en{' '}
-                <Link href="/produccion" className="font-medium text-emerald-700 underline">
+                <Link href="/produccion" className="font-medium text-emerald-700 dark:text-emerald-400 underline">
                   Producción
                 </Link>{' '}
                 para tener botellas disponibles.
@@ -85,7 +98,7 @@ export default async function VentasPage() {
             ) : (
               <form action={registrarVenta} className="grid gap-4 md:grid-cols-2">
                 <div className="md:col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Lote con stock
                   </label>
                   <select name="productoTerminadoId" className={selectClass} defaultValue="" required>
@@ -102,25 +115,25 @@ export default async function VentasPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Botellas vendidas
                   </label>
                   <Input name="botellasVendidas" type="number" min="1" step="1" placeholder="12" required />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Precio unitario (opcional)
                   </label>
                   <Input name="precioUnitario" type="number" step="0.01" min="0" placeholder="Precio sugerido del lote" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Cliente (opcional)
                   </label>
                   <Input name="cliente" placeholder="Nombre del cliente" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Notas (opcional)
                   </label>
                   <Input name="notas" placeholder="Factura, forma de pago, nota…" />
@@ -142,16 +155,35 @@ export default async function VentasPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <form method="get" className="mb-4 flex flex-wrap gap-2">
+              <Input
+                name="q"
+                defaultValue={searchParams?.q ?? ''}
+                placeholder="Buscar por cliente, receta o lote…"
+                className="min-w-52 flex-1"
+              />
+              <Button type="submit" variant="outline">
+                Buscar
+              </Button>
+              {q && (
+                <Link href="/ventas">
+                  <Button type="button" variant="ghost">
+                    Limpiar
+                  </Button>
+                </Link>
+              )}
+            </form>
             {ventas.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                Aún no hay ventas registradas. Registra la primera con el formulario de
-                arriba.
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {q
+                  ? 'No hay ventas que coincidan con la búsqueda.'
+                  : 'Aún no hay ventas registradas. Registra la primera con el formulario de arriba.'}
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-slate-500">
+                    <tr className="border-b dark:border-slate-800 text-left text-slate-500 dark:text-slate-400">
                       <th className="py-2 pr-3">Fecha</th>
                       <th className="py-2 pr-3">Receta</th>
                       <th className="py-2 pr-3">Lote</th>
@@ -163,7 +195,7 @@ export default async function VentasPage() {
                   </thead>
                   <tbody>
                     {ventas.map((venta) => (
-                      <tr key={venta.id} className="border-b">
+                      <tr key={venta.id} className="border-b dark:border-slate-800">
                         <td className="py-2 pr-3 whitespace-nowrap">{formatFecha(venta.fecha)}</td>
                         <td className="py-2 pr-3 font-medium">{venta.receta.nombre}</td>
                         <td className="py-2 pr-3">{venta.productoTerminado.loteProduccion.codigoLote}</td>
@@ -190,7 +222,7 @@ export default async function VentasPage() {
             <CardDescription>
               Facturas, comprobantes o documentos de una venta, guardados en
               Cloudflare R2. También se ven en{' '}
-              <Link href="/archivos?entidad=VENTA" className="font-medium text-emerald-700 underline">
+              <Link href="/archivos?entidad=VENTA" className="font-medium text-emerald-700 dark:text-emerald-400 underline">
                 Archivos
               </Link>
               .
@@ -198,7 +230,7 @@ export default async function VentasPage() {
           </CardHeader>
           <CardContent>
             {ventas.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Aún no hay ventas a las que adjuntar archivos.
               </p>
             ) : (
@@ -209,7 +241,7 @@ export default async function VentasPage() {
               >
                 <input type="hidden" name="entidad" value="VENTA" />
                 <div className="min-w-56 flex-1">
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Venta</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Venta</label>
                   <select name="entidadId" className={selectClass} defaultValue="" required>
                     <option value="" disabled>
                       Selecciona una venta
@@ -224,7 +256,7 @@ export default async function VentasPage() {
                   </select>
                 </div>
                 <div className="min-w-52 flex-1">
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Archivo (imagen o PDF, máx. 5 MB)
                   </label>
                   <input
@@ -232,7 +264,7 @@ export default async function VentasPage() {
                     name="archivo"
                     accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
                     required
-                    className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
+                    className="block w-full text-sm text-slate-600 dark:text-slate-400 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
                   />
                 </div>
                 <Button type="submit" size="sm">

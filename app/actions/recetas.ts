@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { isDbConfigured, prisma } from '@/lib/prisma';
+import { exigirPermiso } from '@/lib/auth';
 import { calculateRecipeCost } from '@/app/lib/costeo';
 import { registrarComponenteReceta } from '@/app/actions/insumos';
 
@@ -65,6 +66,7 @@ export async function obtenerListadoRecetasConCosto() {
  * cantidad si ya estaba). Valida los datos y evita duplicados.
  */
 export async function agregarInsumoAReceta(formData: FormData) {
+  await exigirPermiso('recetas');
   const recetaId = String(formData.get('recetaId') ?? '').trim();
   const insumoId = String(formData.get('insumoId') ?? '').trim();
   const cantidad = Number(formData.get('cantidad') ?? 0);

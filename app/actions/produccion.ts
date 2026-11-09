@@ -2,9 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
+import { exigirPermiso } from '@/lib/auth';
 import { calculateRecipeCost } from '@/app/lib/costeo';
 
 export async function crearInsumo(formData: FormData) {
+  await exigirPermiso('insumos');
   const codigo = String(formData.get('codigo') ?? '').trim();
   const nombre = String(formData.get('nombre') ?? '').trim();
   const categoria = String(formData.get('categoria') ?? '').trim();
@@ -53,6 +55,7 @@ export async function crearInsumo(formData: FormData) {
 }
 
 export async function crearReceta(formData: FormData) {
+  await exigirPermiso('recetas');
   const nombre = String(formData.get('nombre') ?? '').trim();
   const estilo = String(formData.get('estilo') ?? '').trim();
   const abv = Number(formData.get('abv') ?? 0);
@@ -78,6 +81,7 @@ export async function crearReceta(formData: FormData) {
 }
 
 export async function crearLote(formData: FormData) {
+  await exigirPermiso('produccion');
   const recetaId = String(formData.get('recetaId') ?? '');
   const botellasEsperadas = Number(formData.get('botellasEsperadas') ?? 0);
 
@@ -219,6 +223,7 @@ export async function completarLoteProduccion({
  * Lee loteId y botellasReales del formulario y valida antes de cerrar.
  */
 export async function completarLoteForm(formData: FormData) {
+  await exigirPermiso('produccion');
   const loteId = String(formData.get('loteId') ?? '').trim();
   const botellasReales = Number(formData.get('botellasReales') ?? 0);
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isDbConfigured, prisma } from '@/lib/prisma';
+import { exigirSesion } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,12 @@ function escaparCsv(valor: string): string {
  * Sin base de datos devuelve solo los encabezados, nunca un error 500.
  */
 export async function GET() {
+  try {
+    await exigirSesion();
+  } catch {
+    return new NextResponse('Inicia sesión para continuar', { status: 401 });
+  }
+
   const filas: string[][] = [ENCABEZADOS];
 
   if (isDbConfigured()) {

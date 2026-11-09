@@ -24,7 +24,7 @@ const TIPOS_MOVIMIENTO = [
 ] as const;
 
 const selectClass =
-  'flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-emerald-500';
+  'flex h-10 w-full rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-slate-100 dark:ring-offset-slate-950';
 
 export default async function InsumosPage({
   searchParams,
@@ -43,21 +43,21 @@ export default async function InsumosPage({
   const stockBajo = insumosActivos.filter((i) => Number(i.stockActual) <= Number(i.stockMinimo));
 
   return (
-    <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
+    <main className="min-h-screen bg-slate-100 dark:bg-slate-950 p-6 text-slate-900 dark:text-slate-100">
       <div className="mx-auto max-w-7xl space-y-6">
         <DbWarning />
         <R2Warning />
 
         <header>
-          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-400">MELMIR</p>
           <h1 className="mt-2 text-3xl font-bold">Insumos</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Inventario de materias primas, altas nuevas y movimientos de stock.
           </p>
         </header>
 
         {stockBajo.length > 0 && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+          <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/60 p-4 text-sm text-red-900 dark:text-red-200">
             <p className="font-semibold">Alerta de stock bajo ({stockBajo.length})</p>
             <p className="mt-1">
               {stockBajo.map((i) => i.nombre).join(', ')} están en o por debajo de su stock
@@ -84,7 +84,7 @@ export default async function InsumosPage({
             </div>
           </CardHeader>
           <CardContent>
-            <form method="get" className="mb-4 flex gap-2">
+            <form method="get" className="mb-4 flex flex-wrap gap-2">
               <Input
                 name="q"
                 placeholder="Buscar por nombre o código…"
@@ -103,7 +103,7 @@ export default async function InsumosPage({
             </form>
 
             {insumos.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 {busqueda
                   ? 'Ningún insumo coincide con la búsqueda.'
                   : 'Aún no hay insumos registrados. Crea el primero con el formulario de abajo.'}
@@ -112,7 +112,7 @@ export default async function InsumosPage({
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-slate-500">
+                    <tr className="border-b dark:border-slate-800 text-left text-slate-500 dark:text-slate-400">
                       <th className="py-2 pr-3">Código</th>
                       <th className="py-2 pr-3">Nombre</th>
                       <th className="py-2 pr-3">Categoría</th>
@@ -131,7 +131,7 @@ export default async function InsumosPage({
                       return (
                         <tr
                           key={item.id}
-                          className={`border-b ${enAlerta ? 'bg-red-50' : ''} ${!item.activo ? 'opacity-60' : ''}`}
+                          className={`border-b dark:border-slate-800 ${enAlerta ? 'bg-red-50 dark:bg-red-950/60' : ''} ${!item.activo ? 'opacity-60' : ''}`}
                         >
                           <td className="py-2 pr-3 font-medium">{item.codigo}</td>
                           <td className="py-2 pr-3">{item.nombre}</td>
@@ -146,15 +146,15 @@ export default async function InsumosPage({
                           <td className="py-2 pr-3 text-right">{Number(item.stockMinimo)}</td>
                           <td className="py-2 pr-3 text-right">
                             {!item.activo ? (
-                              <span className="rounded-full bg-slate-200 px-2 py-1 text-xs font-medium text-slate-700">
+                              <span className="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-1 text-xs font-medium text-slate-700 dark:text-slate-300">
                                 Inactivo
                               </span>
                             ) : enAlerta ? (
-                              <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
+                              <span className="rounded-full bg-red-100 dark:bg-red-950/60 px-2 py-1 text-xs font-medium text-red-800 dark:text-red-300">
                                 Stock bajo
                               </span>
                             ) : (
-                              <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-800">
+                              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2 py-1 text-xs font-medium text-emerald-800 dark:text-emerald-300">
                                 OK
                               </span>
                             )}
@@ -194,13 +194,13 @@ export default async function InsumosPage({
           </CardHeader>
           <CardContent>
             {todosInsumos.length === 0 ? (
-              <p className="text-sm text-slate-500">Aún no hay insumos para editar.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Aún no hay insumos para editar.</p>
             ) : (
               <div className="space-y-3">
                 {todosInsumos.map((item) => (
                   <details
                     key={item.id}
-                    className="rounded-lg border border-slate-200 bg-white px-4 py-3"
+                    className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3"
                   >
                     <summary className="cursor-pointer text-sm font-medium">
                       {item.nombre} ({item.codigo}){!item.activo ? ' — inactivo' : ''}
@@ -208,19 +208,19 @@ export default async function InsumosPage({
                     <form action={editarInsumo} className="mt-4 grid gap-4 md:grid-cols-2">
                       <input type="hidden" name="insumoId" value={item.id} />
                       <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">
+                        <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                           Nombre
                         </label>
                         <Input name="nombre" defaultValue={item.nombre} required />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">
+                        <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                           Categoría
                         </label>
                         <Input name="categoria" defaultValue={item.categoria} required />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">
+                        <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                           Costo unitario
                         </label>
                         <Input
@@ -233,7 +233,7 @@ export default async function InsumosPage({
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">
+                        <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                           Stock mínimo
                         </label>
                         <Input
@@ -275,19 +275,19 @@ export default async function InsumosPage({
             <CardContent>
               <form action={crearInsumo} className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Código</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Código</label>
                   <Input name="codigo" placeholder="MEL-001" required />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Nombre</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Nombre</label>
                   <Input name="nombre" placeholder="Miel de agave" required />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Categoría</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Categoría</label>
                   <Input name="categoria" placeholder="Azúcar" required />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Unidad</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Unidad</label>
                   <select name="unidadMedida" className={selectClass} defaultValue="KG" required>
                     {UNIDADES.map((u) => (
                       <option key={u} value={u}>
@@ -297,17 +297,17 @@ export default async function InsumosPage({
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Costo unitario
                   </label>
                   <Input name="costoUnitario" type="number" step="0.01" min="0" placeholder="35" required />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Stock actual</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Stock actual</label>
                   <Input name="stockActual" type="number" step="0.01" min="0" placeholder="0" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Stock mínimo</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Stock mínimo</label>
                   <Input name="stockMinimo" type="number" step="0.01" min="0" placeholder="0" />
                 </div>
                 <div className="md:col-span-2 flex justify-end pt-2">
@@ -328,7 +328,7 @@ export default async function InsumosPage({
             <CardContent>
               <form action={registrarMovimientoInsumo} className="grid gap-4 md:grid-cols-2">
                 <div className="md:col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Insumo</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Insumo</label>
                   <select name="insumoId" className={selectClass} defaultValue="" required>
                     <option value="" disabled>
                       Selecciona un insumo
@@ -342,7 +342,7 @@ export default async function InsumosPage({
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Tipo</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Tipo</label>
                   <select name="tipo" className={selectClass} defaultValue="COMPRA" required>
                     {TIPOS_MOVIMIENTO.map((t) => (
                       <option key={t.value} value={t.value}>
@@ -352,17 +352,17 @@ export default async function InsumosPage({
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Cantidad</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Cantidad</label>
                   <Input name="cantidad" type="number" step="0.01" min="0.01" placeholder="10" required />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Costo unitario (opcional)
                   </label>
                   <Input name="costoUnitario" type="number" step="0.01" min="0" placeholder="Costo actual" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Referencia (opcional)
                   </label>
                   <Input name="referencia" placeholder="Factura, proveedor, nota…" />

@@ -2,8 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { isDbConfigured, prisma } from '@/lib/prisma';
+import { exigirPermiso } from '@/lib/auth';
 
 export async function registrarComponenteReceta(recetaId: string, insumoId: string, cantidad: number) {
+  await exigirPermiso('insumos');
   if (!recetaId || !insumoId) {
     throw new Error('Debes indicar la receta y el insumo');
   }
@@ -34,6 +36,7 @@ export async function registrarComponenteReceta(recetaId: string, insumoId: stri
  * movimientos registrados, para no perder el historial.
  */
 export async function editarInsumo(formData: FormData) {
+  await exigirPermiso('insumos');
   const insumoId = String(formData.get('insumoId') ?? '').trim();
   const nombre = String(formData.get('nombre') ?? '').trim();
   const categoria = String(formData.get('categoria') ?? '').trim();
@@ -85,6 +88,7 @@ export async function editarInsumo(formData: FormData) {
  * ni de recetas.
  */
 export async function cambiarEstadoInsumo(formData: FormData) {
+  await exigirPermiso('insumos');
   const insumoId = String(formData.get('insumoId') ?? '').trim();
   const activo = String(formData.get('activo') ?? '') === 'true';
 

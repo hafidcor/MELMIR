@@ -85,12 +85,12 @@ export async function ArchivosEntidad({
         <form
           action={subirArchivo}
           encType="multipart/form-data"
-          className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3"
+          className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-3"
         >
           <input type="hidden" name="entidad" value={entidad} />
           <input type="hidden" name="entidadId" value={entidadId} />
           <div className="min-w-52 flex-1">
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
               Subir archivo
             </label>
             <input
@@ -99,9 +99,9 @@ export async function ArchivosEntidad({
               accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
               disabled={!r2Listo}
               required
-              className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700 disabled:opacity-50"
+              className="block w-full text-sm text-slate-600 dark:text-slate-400 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700 disabled:opacity-50"
             />
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               Imágenes (JPEG, PNG, WebP, GIF) y PDF, máximo 5 MB por archivo.
             </p>
           </div>
@@ -111,7 +111,7 @@ export async function ArchivosEntidad({
         </form>
 
         {archivos.length === 0 ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Aún no hay archivos para esta entidad.
           </p>
         ) : (
@@ -119,7 +119,7 @@ export async function ArchivosEntidad({
             {archivos.map((archivo) => (
               <li
                 key={archivo.id}
-                className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm"
+                className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-sm"
               >
                 {esImagen(archivo.tipoMime) ? (
                   <Link href={archivo.url} target="_blank" rel="noreferrer">
@@ -133,7 +133,7 @@ export async function ArchivosEntidad({
                     />
                   </Link>
                 ) : (
-                  <span className="flex h-16 w-16 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-600">
+                  <span className="flex h-16 w-16 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300">
                     PDF
                   </span>
                 )}
@@ -142,11 +142,11 @@ export async function ArchivosEntidad({
                     href={archivo.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-medium text-emerald-700 underline"
+                    className="font-medium text-emerald-700 dark:text-emerald-400 underline"
                   >
                     {archivo.nombreOriginal}
                   </Link>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {archivo.tipoMime} · {formatoTamano(archivo.tamano)} ·{' '}
                     {new Date(archivo.createdAt).toLocaleDateString('es-MX')}
                   </p>

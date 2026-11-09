@@ -1,86 +1,46 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
-import { Button } from '@/components/ui/button';
+import { Navegacion } from '@/components/navegacion';
+import { hayUsuarios, obtenerSesion } from '@/lib/auth';
 
 export const metadata: Metadata = {
   title: 'MELMIR ERP',
   description: 'ERP para operaciones de hidromiel',
 };
 
-const navItems = [
-  { href: '/', label: 'Inicio' },
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/insumos', label: 'Insumos' },
-  { href: '/recetas', label: 'Recetas' },
-  { href: '/produccion', label: 'Producción' },
-  { href: '/precios', label: 'Precios' },
-  { href: '/ventas', label: 'Ventas' },
-  { href: '/archivos', label: 'Archivos' },
-  { href: '/historial', label: 'Historial' },
-];
-
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Sesión opcional: en modo abierto (sin usuarios) no hay usuario y la
+  // app funciona como hoy. Si la base no responde, se sigue abierto.
+  let usuario: { nombre: string; rol: string } | null = null;
+  let authActiva = false;
+  try {
+    usuario = await obtenerSesion();
+    authActiva = await hayUsuarios();
+  } catch {
+    usuario = null;
+    authActiva = false;
+  }
+
   return (
-    <html lang="es">
-      <body className="min-h-screen bg-slate-100 text-slate-900">
-        <div className="min-h-screen">
-          <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
-            <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-              <Link href="/" className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-sm font-bold text-white">
-                  M
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
-                  <p className="text-sm font-semibold">ERP Hidromiel</p>
-                </div>
-              </Link>
-
-              <nav className="hidden items-center gap-2 md:flex">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
-
-              <div className="flex items-center gap-2">
-                <Link href="/insumos">
-                  <Button variant="outline" size="sm">
-                    Insumos
-                  </Button>
-                </Link>
-                <Link href="/recetas">
-                  <Button size="sm">Nueva receta</Button>
-                </Link>
-              </div>
-            </div>
-
-            <nav className="flex gap-1 overflow-x-auto px-4 pb-3 md:hidden">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          </header>
-
-          <main>{children}</main>
-        </div>
+    <html lang="es" suppressHydrationWarning>
+      <head>
+        {/* Anti-parpadeo de tema: pone la clase 'dark' antes de pintar,
+            según lo guardado en localStorage o prefers-color-scheme. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('melmir-tema');if(t==='oscuro'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body className="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+        <Navegacion usuario={usuario} authActiva={authActiva} />
+        {/* Espacio inferior en móvil para la barra de navegación fija. */}
+        <div className="pb-24 md:pb-0">{children}</div>
       </body>
     </html>
   );

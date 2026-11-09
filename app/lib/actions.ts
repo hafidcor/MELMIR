@@ -1,9 +1,11 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { exigirPermiso } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
 export async function crearInsumo(formData: FormData) {
+  await exigirPermiso('insumos');
   const codigo = String(formData.get('codigo') ?? '').trim();
   const nombre = String(formData.get('nombre') ?? '').trim();
   const categoria = String(formData.get('categoria') ?? '').trim();
@@ -51,6 +53,7 @@ export async function crearInsumo(formData: FormData) {
 }
 
 export async function crearReceta(formData: FormData) {
+  await exigirPermiso('recetas');
   const nombre = String(formData.get('nombre') ?? '').trim();
   const estilo = String(formData.get('estilo') ?? '').trim();
   const abv = Number(formData.get('abv') ?? 0);

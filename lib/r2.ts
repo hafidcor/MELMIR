@@ -1,4 +1,10 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 
 /**
  * Cliente de Cloudflare R2 (API S3-compatible).
@@ -12,6 +18,9 @@ import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client
  */
 
 export const MAX_ARCHIVO_BYTES = 5 * 1024 * 1024; // 5 MB
+
+/** Prefijo de los respaldos de la base de datos dentro del bucket R2. */
+export const PREFIJO_RESPALDOS = 'melmir/respaldos/';
 
 export const TIPOS_PERMITIDOS: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -104,4 +113,35 @@ export async function eliminarArchivoDeR2(clave: string): Promise<void> {
   await getR2Client().send(
     new DeleteObjectCommand({ Bucket: getR2Bucket(), Key: clave })
   );
+}
+
+/**
+ * Lista los objetos de R2 bajo un prefijo (p. ej. 'melmir/respaldos/').
+ * Devuelve clave, tamaño en bytes y fecha de última modificación.
+ * Ante cualquier error de R2, lanza el error para que lo gestione quien llama.
+ */
+export async function listarObjetosR2(
+  prefijo: string
+): Promise<Array<{ clave: string; tamano: number; fecha: Date | null }>> {
+  const respuesta = await getR2Client().send(
+    new ListObjectsV2Command({ Bucket: getR2Bucket(), Prefix: prefijo })
+  );
+  return (respuesta.Contents ?? [])
+    .filter((objeto) => typeof objeto.Key === 'string' && objeto.Key.length > 0)
+    .map((objeto) => ({
+      clave: objeto.Key as string,
+      tamano: objeto.Size ?? 0,
+      fecha: objeto.LastModified ?? null,
+    }));
+}
+
+/**
+ * Obtiene un objeto de R2 y devuelve su Body tal cual (stream del SDK de
+ * AWS), para que la ruta API que lo sirve lo devuelva como respuesta.
+ */
+export async function obtenerObjetoR2(clave: string) {
+  const respuesta = await getR2Client().send(
+    new GetObjectCommand({ Bucket: getR2Bucket(), Key: clave })
+  );
+  return respuesta.Body;
 }

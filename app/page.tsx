@@ -13,14 +13,32 @@ export default async function HomePage() {
   const recetas = await obtenerRecetas();
   const lotes = await obtenerLotes();
   const historial = await obtenerHistorialReciente();
+  const stockBajo = insumos.filter(
+    (item) => Number(item.stockActual) <= Number(item.stockMinimo)
+  );
 
   return (
-    <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
+    <main className="min-h-screen bg-slate-100 dark:bg-slate-950 p-6 text-slate-900 dark:text-slate-100">
       <div className="mx-auto max-w-7xl space-y-8">
         <DbWarning />
-        <header className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
+        {stockBajo.length > 0 && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/60 dark:text-red-200">
+            <p className="font-semibold">
+              Stock bajo: {stockBajo.length} insumo(s) en el mínimo o por debajo
+            </p>
+            <p className="mt-1">
+              {stockBajo.map((item) => item.nombre).join(', ')}. Revisa y registra una
+              compra en{' '}
+              <Link href="/insumos" className="font-medium underline">
+                Insumos
+              </Link>
+              .
+            </p>
+          </div>
+        )}
+        <header className="flex flex-col gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
+            <p className="text-sm uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-400">MELMIR</p>
             <h1 className="mt-2 text-4xl font-bold">ERP de producción y ventas</h1>
           </div>
 
@@ -44,7 +62,7 @@ export default async function HomePage() {
               <CardTitle>{dashboard.insumosCount}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-slate-500">Materias primas</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Materias primas</p>
             </CardContent>
           </Card>
 
@@ -54,7 +72,7 @@ export default async function HomePage() {
               <CardTitle>{dashboard.recetasCount}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-slate-500">Fórmulas activas</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Fórmulas activas</p>
             </CardContent>
           </Card>
 
@@ -64,7 +82,7 @@ export default async function HomePage() {
               <CardTitle>{dashboard.lotesCount}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-slate-500">Órdenes registradas</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Órdenes registradas</p>
             </CardContent>
           </Card>
 
@@ -74,7 +92,7 @@ export default async function HomePage() {
               <CardTitle>{dashboard.stockTotal}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-slate-500">Producto terminado</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Producto terminado</p>
             </CardContent>
           </Card>
         </section>
@@ -88,7 +106,7 @@ export default async function HomePage() {
             <CardContent>
               <div className="space-y-3">
                 {insumos.slice(0, 5).map((item) => (
-                  <div key={item.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                  <div key={item.id} className="flex items-center justify-between border-b dark:border-slate-800 pb-2 text-sm">
                     <span>{item.nombre}</span>
                     <span className="font-semibold">
                       {Number(item.stockActual)} {item.unidadMedida}
@@ -107,7 +125,7 @@ export default async function HomePage() {
             <CardContent>
               <div className="space-y-3">
                 {recetas.slice(0, 5).map((receta) => (
-                  <div key={receta.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                  <div key={receta.id} className="flex items-center justify-between border-b dark:border-slate-800 pb-2 text-sm">
                     <span>{receta.nombre}</span>
                     <span className="font-semibold">{receta.rendimientoBotellas} bot.</span>
                   </div>
@@ -132,14 +150,14 @@ export default async function HomePage() {
           <CardContent>
             <div className="space-y-3">
               {historial.map((movimiento) => (
-                <div key={movimiento.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                <div key={movimiento.id} className="flex items-center justify-between border-b dark:border-slate-800 pb-2 text-sm">
                   <div>
                     <p className="font-semibold">{movimiento.insumo?.nombre}</p>
-                    <p className="text-slate-500">{movimiento.tipo}</p>
+                    <p className="text-slate-500 dark:text-slate-400">{movimiento.tipo}</p>
                   </div>
                   <div className="text-right">
                     <p>{Number(movimiento.cantidad)} {movimiento.insumo?.unidadMedida}</p>
-                    <p className="text-slate-500">{movimiento.referencia}</p>
+                    <p className="text-slate-500 dark:text-slate-400">{movimiento.referencia}</p>
                   </div>
                 </div>
               ))}
@@ -162,14 +180,14 @@ export default async function HomePage() {
           <CardContent>
             <div className="space-y-3">
               {lotes.slice(0, 5).map((lote) => (
-                <div key={lote.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                <div key={lote.id} className="flex items-center justify-between border-b dark:border-slate-800 pb-2 text-sm">
                   <div>
                     <p className="font-semibold">{lote.codigoLote}</p>
-                    <p className="text-slate-500">{lote.receta.nombre}</p>
+                    <p className="text-slate-500 dark:text-slate-400">{lote.receta.nombre}</p>
                   </div>
                   <div className="text-right">
                     <p>{lote.estado}</p>
-                    <p className="text-slate-500">{lote.botellasReales} botellas</p>
+                    <p className="text-slate-500 dark:text-slate-400">{lote.botellasReales} botellas</p>
                   </div>
                 </div>
               ))}

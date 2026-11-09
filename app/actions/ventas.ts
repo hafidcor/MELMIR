@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { isDbConfigured, prisma } from '@/lib/prisma';
+import { exigirPermiso } from '@/lib/auth';
 import { calcularPrecioVenta } from '@/app/lib/precios';
 
 const IEPS = 0.08;
@@ -168,6 +169,7 @@ export async function obtenerResumenVentas(): Promise<ResumenVentas> {
  * Si el precio unitario viene vacío, se usa el precio sugerido de /precios.
  */
 export async function registrarVenta(formData: FormData) {
+  await exigirPermiso('ventas');
   const productoTerminadoId = String(formData.get('productoTerminadoId') ?? '').trim();
   const botellasVendidas = Number(formData.get('botellasVendidas') ?? 0);
   const precioUnitarioForm = String(formData.get('precioUnitario') ?? '').trim();

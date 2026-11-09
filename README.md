@@ -189,8 +189,8 @@ queda desactivada (mismo patrón que `DATABASE_URL`).
 - **Variables**: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
   `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` y `R2_PUBLIC_URL` (ver
   `.env.example` y la sección "Archivos en Cloudflare R2" de este README).
-  Pendiente por parte del usuario: crear el bucket y el token en
-  Cloudflare y poner esas variables en Vercel.
+  Configurado en 2026-11-09: bucket `melmir-archivos` con acceso público
+  r2.dev y las 5 variables en Vercel; la subida ya funciona en producción.
 
 ## Novedades: ventas, edición de insumos, búsqueda, CSV y dashboard de ventas
 - **Ventas (`/ventas`, modelo Prisma `Venta`)**: cierra el ciclo del ERP.
@@ -220,6 +220,53 @@ queda desactivada (mismo patrón que `DATABASE_URL`).
   ventas (botellas vendidas, ingresos totales y ventas del mes), gráfico de
   barras en CSS puro con las ventas por mes de los últimos 6 meses y una
   lista de ventas recientes.
+
+## Novedades: tema oscuro, menú, gráficas, usuarios y respaldos
+
+- **Tema oscuro y dinámico**: interruptor claro/oscuro siempre visible en el
+  menú (sol/luna), guardado en `localStorage` (`melmir-tema`) y que respeta
+  `prefers-color-scheme` la primera vez; un script anti-parpadeo en
+  `app/layout.tsx` pone la clase `dark` antes de pintar. `tailwind.config.ts`
+  ya usaba `darkMode: ['class']` y `app/globals.css` tiene el bloque `.dark`
+  con las variables de color; todas las páginas usan variantes `dark:`.
+- **Menú mejorado (`components/navegacion.tsx`)**: en escritorio, barra
+  superior con todos los enlaces y estado activo visible; en móvil, barra
+  inferior fija con Inicio, Producción, Ventas, Archivos y Menú, más un menú
+  deslizable con todas las secciones (Inicio, Dashboard, Insumos, Recetas,
+  Producción, Precios, Ventas, Archivos, Historial, Usuarios, Respaldos).
+  Muestra el usuario en sesión y el botón de cierre de sesión. El contenido
+  tiene espacio inferior en móvil para que la barra no tape nada.
+- **Gráficas reales en el Dashboard (`components/graficas.tsx`, SVG propio
+  sin dependencias nuevas)**: ventas por mes (barras de botellas + línea de
+  ingresos), stock de cada insumo frente a su stock mínimo (en rojo lo que
+  está en el mínimo o por debajo) y dona de lotes por estado. Se ven bien en
+  móvil y en tema oscuro.
+- **Búsqueda en Ventas**: buscador por cliente, receta o lote en el historial
+  de ventas (`/ventas?q=...`). **Alerta de stock bajo en Inicio**: si algún
+  insumo está en el mínimo o por debajo, aparece un aviso rojo arriba con
+  enlace a Insumos.
+- **Usuarios y permisos (modelo Prisma `Usuario`, `lib/auth.ts`,
+  `middleware.ts`, `/login`, `/usuarios`)**: roles ADMIN, OPERADOR, VENDEDOR
+  y CONSULTA. CONSULTA solo lectura (todas las mutaciones se bloquean en el
+  servidor); VENDEDOR registra ventas y sube archivos; OPERADOR gestiona
+  insumos, producción y recetas; ADMIN todo más usuarios y respaldos. Sesión
+  con cookie httpOnly JWT (HS256, 7 días) firmada con `jose` y contraseñas
+  con `bcryptjs`. **Regla clave**: si la base de datos no tiene ningún
+  usuario, la app funciona abierta como siempre (sin login); el login solo se
+  exige cuando ya existe al menos un usuario. El primer usuario se crea en
+  `/usuarios` (queda como ADMIN) y a partir de ahí hay que iniciar sesión.
+- **Variable obligatoria antes del primer usuario**: `MELMIR_AUTH_SECRET`
+  (ver `.env.example`; genera uno con `openssl rand -base64 32` y ponlo en
+  Vercel como Secret para Production, Preview y Development). Sin ella no se
+  puede iniciar sesión ni crear usuarios.
+- **Respaldo de la base de datos en R2 (`/respaldo`, solo ADMIN)**: el botón
+  "Crear respaldo" lee todas las tablas con Prisma, las serializa a JSON y
+  lo sube a R2 con la clave `melmir/respaldos/YYYY-MM-DD-HHmm-respaldo.json`.
+  La página lista los respaldos (fecha y tamaño) con descarga y borrado. Los
+  respaldos NO son públicos: la descarga pasa por
+  `/api/respaldos/[...clave]`, que hace streaming desde R2 solo para ADMIN.
+  El respaldo NUNCA incluye `Usuario.contrasenaHash` ni secretos. La
+  restauración es manual: se descarga el JSON y se reimporta a mano.
 
 ## Estructura principal
 - `app/` páginas y listas principales

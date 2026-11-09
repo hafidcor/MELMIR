@@ -38,15 +38,15 @@ export default async function HistorialPage({
     : todosMovimientos;
 
   return (
-    <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
+    <main className="min-h-screen bg-slate-100 dark:bg-slate-950 p-6 text-slate-900 dark:text-slate-100">
       <div className="mx-auto max-w-6xl space-y-6">
         <DbWarning />
 
-        <header className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
+        <header className="flex flex-col gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-400">MELMIR</p>
             <h1 className="mt-2 text-3xl font-bold">Historial</h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               Movimientos de insumos, ventas y lotes de producción recientes.
             </p>
           </div>
@@ -60,7 +60,7 @@ export default async function HistorialPage({
           </div>
         </header>
 
-        <form method="get" className="flex gap-2">
+        <form method="get" className="flex flex-wrap gap-2">
           <Input
             name="q"
             placeholder="Buscar movimientos por insumo o referencia…"
@@ -88,13 +88,13 @@ export default async function HistorialPage({
           </CardHeader>
           <CardContent>
             {movimientos.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 {busqueda
                   ? 'Ningún movimiento coincide con la búsqueda.'
                   : 'Aún no hay movimientos registrados. Puedes registrar uno desde'}{' '}
                 {!busqueda && (
                   <>
-                    <Link href="/insumos" className="font-medium text-emerald-700 underline">
+                    <Link href="/insumos" className="font-medium text-emerald-700 dark:text-emerald-400 underline">
                       Insumos
                     </Link>
                     .
@@ -105,7 +105,7 @@ export default async function HistorialPage({
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-slate-500">
+                    <tr className="border-b dark:border-slate-800 text-left text-slate-500 dark:text-slate-400">
                       <th className="py-2 pr-3">Fecha</th>
                       <th className="py-2 pr-3">Insumo</th>
                       <th className="py-2 pr-3">Tipo</th>
@@ -116,7 +116,7 @@ export default async function HistorialPage({
                   </thead>
                   <tbody>
                     {movimientos.map((movimiento) => (
-                      <tr key={movimiento.id} className="border-b">
+                      <tr key={movimiento.id} className="border-b dark:border-slate-800">
                         <td className="py-2 pr-3 whitespace-nowrap">
                           {formatFecha(movimiento.createdAt)}
                         </td>
@@ -145,19 +145,19 @@ export default async function HistorialPage({
             <CardTitle>Ventas recientes</CardTitle>
             <CardDescription>
               Ventas de producto terminado registradas en{' '}
-              <Link href="/ventas" className="font-medium text-emerald-700 underline">
+              <Link href="/ventas" className="font-medium text-emerald-700 dark:text-emerald-400 underline">
                 Ventas
               </Link>
             </CardDescription>
           </CardHeader>
           <CardContent>
             {ventas.length === 0 ? (
-              <p className="text-sm text-slate-500">Aún no hay ventas registradas.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Aún no hay ventas registradas.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-slate-500">
+                    <tr className="border-b dark:border-slate-800 text-left text-slate-500 dark:text-slate-400">
                       <th className="py-2 pr-3">Fecha</th>
                       <th className="py-2 pr-3">Receta</th>
                       <th className="py-2 pr-3">Lote</th>
@@ -168,7 +168,7 @@ export default async function HistorialPage({
                   </thead>
                   <tbody>
                     {ventas.map((venta) => (
-                      <tr key={venta.id} className="border-b">
+                      <tr key={venta.id} className="border-b dark:border-slate-800">
                         <td className="py-2 pr-3 whitespace-nowrap">{formatFecha(venta.fecha)}</td>
                         <td className="py-2 pr-3 font-medium">{venta.receta.nombre}</td>
                         <td className="py-2 pr-3">{venta.productoTerminado.loteProduccion.codigoLote}</td>
@@ -193,18 +193,18 @@ export default async function HistorialPage({
           </CardHeader>
           <CardContent>
             {lotes.length === 0 ? (
-              <p className="text-sm text-slate-500">Aún no hay lotes registrados.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Aún no hay lotes registrados.</p>
             ) : (
               <div className="space-y-3">
                 {lotes.map((lote) => (
-                  <div key={lote.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                  <div key={lote.id} className="flex items-center justify-between border-b dark:border-slate-800 pb-2 text-sm">
                     <div>
                       <p className="font-semibold">{lote.codigoLote}</p>
-                      <p className="text-slate-500">{lote.receta.nombre}</p>
+                      <p className="text-slate-500 dark:text-slate-400">{lote.receta.nombre}</p>
                     </div>
                     <div className="text-right">
                       <p>{lote.estado}</p>
-                      <p className="text-slate-500">
+                      <p className="text-slate-500 dark:text-slate-400">
                         {lote.botellasReales} / {lote.botellasEsperadas} botellas ·{' '}
                         {formatFecha(lote.updatedAt)}
                       </p>

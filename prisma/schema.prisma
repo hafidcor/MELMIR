@@ -183,3 +183,23 @@ model Archivo {
   @@index([entidad, entidadId])
   @@map("archivos")
 }
+
+enum RolUsuario {
+  ADMIN
+  OPERADOR
+  VENDEDOR
+  CONSULTA
+}
+
+model Usuario {
+  id             String     @id @default(cuid())
+  nombre         String
+  email          String     @unique
+  contrasenaHash String
+  rol            RolUsuario @default(CONSULTA)
+  activo         Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@map("usuarios")
+}
