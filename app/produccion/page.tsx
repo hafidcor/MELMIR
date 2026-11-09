@@ -7,8 +7,9 @@ import { DbWarning } from '@/components/db-warning';
 import { R2Warning } from '@/components/r2-warning';
 import { ArchivosEntidad } from '@/components/archivos';
 import { isDbConfigured, prisma } from '@/lib/prisma';
-import { crearLote, completarLoteForm } from '@/app/actions/produccion';
+import { crearLote } from '@/app/actions/produccion';
 import { crearEtapasLote, actualizarEtapa } from '@/app/actions/etapas';
+import CompletarLoteForm from '@/components/completar-lote-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,20 @@ export default async function ProduccionPage({
     botellasReales: number;
     costoTotalLote: unknown;
     costoUnitarioPieza: unknown;
-    receta: { id: string; nombre: string };
+    receta: {
+      id: string;
+      nombre: string;
+      recetaInsumos: Array<{
+        cantidadConsumida: unknown;
+        insumo: {
+          id: string;
+          nombre: string;
+          unidadMedida: string;
+          costoUnitario: unknown;
+          stockActual: unknown;
+        };
+      }>;
+    };
     etapas: Array<{
       id: string;
       nombre: string;
@@ -42,6 +56,14 @@ export default async function ProduccionPage({
       fechaPlaneada: Date | null;
       fechaReal: Date | null;
     }>;
+    movimientos: Array<{
+      id: string;
+      cantidad: unknown;
+      costoUnitario: unknown;
+      total: unknown;
+      insumo: { nombre: string; unidadMedida: string };
+    }>;
+    costosAdicionales: Array<{ id: string; concepto: string; monto: unknown }>;
   }> = [];
 
   if (isDbConfigured()) {
@@ -51,7 +73,16 @@ export default async function ProduccionPage({
       });
       lotes = await prisma.loteProduccion.findMany({
         where: estadoFiltro ? { estado: estadoFiltro } : undefined,
-        include: { receta: true, etapas: { orderBy: { orden: 'asc' } } },
+        include: {
+          receta: { include: { recetaInsumos: { include: { insumo: true } } } },
+          etapas: { orderBy: { orden: 'asc' } },
+          movimientos: {
+            where: { tipo: 'PRODUCCION_CONSUMO' },
+            include: { insumo: true },
+            orderBy: { createdAt: 'asc' },
+          },
+          costosAdicionales: { orderBy: { createdAt: 'asc' } },
+        },
         orderBy: { createdAt: 'desc' },
       });
     } catch (error) {
@@ -173,7 +204,7 @@ export default async function ProduccionPage({
                           <p className="font-semibold">{lote.botellasReales}</p>
                         </div>
                         <div>
-                          <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Coste lote</p>
+                          <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Costo real del lote</p>
                           <p className="font-semibold">
                             {Number(lote.costoTotalLote ?? 0) > 0
                               ? `$${Number(lote.costoTotalLote).toFixed(2)}`
@@ -181,7 +212,7 @@ export default async function ProduccionPage({
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Costo / pieza</p>
+                          <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Costo real / botella</p>
                           <p className="font-semibold">
                             {Number(lote.costoUnitarioPieza ?? 0) > 0
                               ? `$${Number(lote.costoUnitarioPieza).toFixed(2)}`
@@ -265,31 +296,19 @@ export default async function ProduccionPage({
                       </div>
 
                       {abierto ? (
-                        <form
-                          action={completarLoteForm}
-                          className="mt-4 flex flex-wrap items-end gap-3 border-t dark:border-slate-800 pt-4"
-                        >
-                          <input type="hidden" name="loteId" value={lote.id} />
-                          <div className="w-44">
-                            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                              Botellas reales
-                            </label>
-                            <Input
-                              name="botellasReales"
-                              type="number"
-                              min="1"
-                              placeholder={String(lote.botellasEsperadas)}
-                              required
-                            />
-                          </div>
-                          <Button type="submit" size="sm">
-                            Completar lote
-                          </Button>
-                          <p className="w-full text-xs text-slate-500 dark:text-slate-400">
-                            Al completar el lote se descuentan los insumos de la receta y se
-                            registra el producto terminado. Si falta stock, el cierre se rechaza.
-                          </p>
-                        </form>
+                        <CompletarLoteForm
+                          loteId={lote.id}
+                          codigoLote={lote.codigoLote}
+                          botellasEsperadas={lote.botellasEsperadas}
+                          insumos={lote.receta.recetaInsumos.map((ri) => ({
+                            id: ri.insumo.id,
+                            nombre: ri.insumo.nombre,
+                            unidadMedida: ri.insumo.unidadMedida,
+                            cantidadTeorica: Number(ri.cantidadConsumida),
+                            costoUnitario: Number(ri.insumo.costoUnitario),
+                            stockActual: Number(ri.insumo.stockActual),
+                          }))}
+                        />
                       ) : (
                         <p className="mt-4 border-t dark:border-slate-800 pt-4 text-sm text-slate-500 dark:text-slate-400">
                           Lote {lote.estado === 'COMPLETADO' ? 'completado' : lote.estado.toLowerCase()}{' '}
@@ -300,6 +319,73 @@ export default async function ProduccionPage({
                           .
                         </p>
                       )}
+
+                      {/* Desglose del costo real del lote (consumo ligado al lote) */}
+                      {lote.estado === 'COMPLETADO' ? (
+                        <div className="mt-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-4">
+                          <p className="text-sm font-semibold">Costo real del lote</p>
+                          {lote.movimientos.length === 0 && lote.costosAdicionales.length === 0 ? (
+                            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                              Costo registrado: $
+                              {Number(lote.costoTotalLote ?? 0).toFixed(2)}
+                              {Number(lote.costoUnitarioPieza ?? 0) > 0
+                                ? ` ($${Number(lote.costoUnitarioPieza).toFixed(2)} por botella)`
+                                : ''}
+                              . Sin desglose de consumo: este lote se registró antes del
+                              desglose por consumo real.
+                            </p>
+                          ) : (
+                            <div className="mt-3 overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b dark:border-slate-800 text-left text-slate-500 dark:text-slate-400">
+                                    <th className="py-2 pr-3">Concepto</th>
+                                    <th className="py-2 pr-3 text-right">Cantidad</th>
+                                    <th className="py-2 pr-3 text-right">Costo unitario</th>
+                                    <th className="py-2 text-right">Subtotal</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {lote.movimientos.map((mov) => (
+                                    <tr key={mov.id} className="border-b dark:border-slate-800">
+                                      <td className="py-2 pr-3 font-medium">{mov.insumo.nombre}</td>
+                                      <td className="py-2 pr-3 text-right">
+                                        {Number(mov.cantidad)} {mov.insumo.unidadMedida}
+                                      </td>
+                                      <td className="py-2 pr-3 text-right">
+                                        ${Number(mov.costoUnitario ?? 0).toFixed(2)}
+                                      </td>
+                                      <td className="py-2 text-right font-semibold">
+                                        ${Number(mov.total ?? 0).toFixed(2)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                  {lote.costosAdicionales.map((adicional) => (
+                                    <tr key={adicional.id} className="border-b dark:border-slate-800">
+                                      <td className="py-2 pr-3 font-medium">{adicional.concepto}</td>
+                                      <td className="py-2 pr-3 text-right text-slate-500 dark:text-slate-400">
+                                        adicional
+                                      </td>
+                                      <td className="py-2 pr-3 text-right">—</td>
+                                      <td className="py-2 text-right font-semibold">
+                                        ${Number(adicional.monto).toFixed(2)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                  <tr>
+                                    <td className="py-2 pr-3 font-semibold" colSpan={3}>
+                                      Total del lote
+                                    </td>
+                                    <td className="py-2 text-right font-bold text-emerald-700 dark:text-emerald-400">
+                                      ${Number(lote.costoTotalLote ?? 0).toFixed(2)}
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
 
                       <div className="mt-4">
                         <ArchivosEntidad

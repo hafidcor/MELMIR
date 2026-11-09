@@ -113,10 +113,16 @@ model InsumoMovimiento {
   total         Decimal?            @db.Decimal(18, 4)
   saldoAfter    Decimal?            @db.Decimal(18, 4)
   referencia    String?
+  // Lote al que pertenece el consumo (solo PRODUCCION_CONSUMO).
+  // Opcional: los movimientos viejos, registrados antes de este cambio,
+  // quedan con el campo vacío y se identifican solo por la referencia.
+  loteProduccionId String?
   createdAt     DateTime            @default(now())
 
-  insumo Insumo @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  insumo         Insumo          @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  loteProduccion LoteProduccion? @relation(fields: [loteProduccionId], references: [id], onDelete: SetNull)
 
+  @@index([loteProduccionId])
   @@map("insumo_movimientos")
 }
 
@@ -138,8 +144,26 @@ model LoteProduccion {
   receta            Receta            @relation(fields: [recetaId], references: [id], onDelete: Restrict)
   productoTerminado ProductoTerminado?
   etapas            LoteEtapa[]
+  // Consumo real de insumos ligado al lote (PRODUCCION_CONSUMO) y
+  // costos adicionales de producción (gas, mano de obra, etc.).
+  movimientos       InsumoMovimiento[]
+  costosAdicionales CostoAdicionalLote[]
 
   @@map("lotes_produccion")
+}
+
+// Costo adicional de producción de un lote (gas, mano de obra, flete,
+// etc.): se captura al completar el lote y se suma a su costo real.
+model CostoAdicionalLote {
+  id               String   @id @default(cuid())
+  loteProduccionId String
+  concepto         String
+  monto            Decimal  @db.Decimal(18, 4)
+  createdAt        DateTime @default(now())
+
+  loteProduccion LoteProduccion @relation(fields: [loteProduccionId], references: [id], onDelete: Cascade)
+
+  @@map("costos_adicionales_lote")
 }
 
 model ProductoTerminado {

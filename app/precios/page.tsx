@@ -83,8 +83,9 @@ export default async function PreciosPage() {
           <CardHeader>
             <CardTitle>Precio sugerido por receta</CardTitle>
             <CardDescription>
-              Costo de lote y por pieza según los insumos de cada receta, con impuestos y
-              margen aplicados.
+              Costo teórico del lote y por pieza según los insumos de cada receta, con
+              impuestos y margen aplicados. Es una referencia: el costo real de cada
+              lote depende de lo que realmente se gastó en su producción.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -117,11 +118,11 @@ export default async function PreciosPage() {
 
                     <div className="mt-4 grid gap-3 text-sm md:grid-cols-5">
                       <div>
-                        <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Costo del lote</p>
+                        <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Costo teórico del lote (receta)</p>
                         <p className="font-semibold">${receta.costoLote.toFixed(2)}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Costo / pieza</p>
+                        <p className="text-xs uppercase text-slate-500 dark:text-slate-400">Costo teórico / pieza (receta)</p>
                         <p className="font-semibold">${receta.costoPorPieza.toFixed(2)}</p>
                       </div>
                       <div>
@@ -172,7 +173,7 @@ export default async function PreciosPage() {
                       <th className="py-2 pr-3">Receta</th>
                       <th className="py-2 pr-3">Lote</th>
                       <th className="py-2 pr-3 text-right">Botellas</th>
-                      <th className="py-2 pr-3 text-right">Costo unitario</th>
+                      <th className="py-2 pr-3 text-right">Costo unitario real</th>
                       <th className="py-2 text-right">Precio sugerido</th>
                     </tr>
                   </thead>

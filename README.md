@@ -338,6 +338,41 @@ queda desactivada (mismo patrón que `DATABASE_URL`).
   generados en el repo. Se puede instalar como app en el teléfono. Sin modo
   offline en este lote.
 
+## Novedades: costo real por lote ligado a su consumo
+
+El costo es variable según la inversión de cada lote, así que ya no se
+calcula con la fórmula teórica de la receta:
+
+- **Consumo real al completar el lote (`/produccion`)**: el formulario de
+  cierre muestra cada insumo de la receta con su cantidad teórica
+  prellenada y un campo editable de cantidad REAL consumida. Al completar,
+  el stock se valida y se descuenta con las cantidades reales (no las
+  teóricas) y cada consumo queda ligado al lote
+  (`InsumoMovimiento.loteProduccionId`, modelo nuevo en el esquema).
+- **Costo real del lote** = Σ (cantidad real × costo unitario del insumo
+  en ese momento) + costos adicionales. Se guarda en el lote
+  (`costoTotalLote`, `costoUnitarioPieza` por botella real producida) y en
+  el producto terminado (`costoRealLote`, `costoUnitarioBotella`). Si lo
+  real es igual a la receta, el resultado coincide con el teórico.
+- **Costos adicionales de producción** (modelo `CostoAdicionalLote`):
+  gas, mano de obra, flete u otros gastos del lote, capturados en el mismo
+  formulario de cierre y sumados al costo total del lote.
+- **Desglose por lote**: en `/produccion`, cada lote completado muestra su
+  «Costo real del lote» con el detalle (insumo, cantidad real, costo
+  unitario, subtotal) leído de sus movimientos ligados, más los costos
+  adicionales. El total se ve en vivo en el formulario antes de confirmar.
+- **Costo teórico vs. real**: `/precios` sigue mostrando el costo teórico
+  de la receta como referencia, ahora etiquetado «Costo teórico (receta)»;
+  el costo real vive en el lote y en el producto terminado.
+- **Margen y punto de venta usan el costo real**: el margen de ventas y el
+  precio sugerido del POS se calculan con el costo unitario real del lote
+  del que sale cada botella (ya era así; se verificó y no hizo falta
+  corregir nada).
+- **LT-001 no se tocó**: su costo guardado ($1,248.30 / $10.40 por
+  botella) queda como su inversión real registrada; el seed no cambió. Su
+  desglose no muestra movimientos porque se registró antes del consumo
+  ligado al lote.
+
 ## Estructura principal
 - `app/` páginas y listas principales
 - `app/actions/` server actions

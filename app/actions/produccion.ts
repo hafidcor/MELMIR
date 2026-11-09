@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { exigirPermiso } from '@/lib/auth';
-import { calculateRecipeCost } from '@/app/lib/costeo';
 
 export async function crearInsumo(formData: FormData) {
   await exigirPermiso('insumos');
@@ -128,12 +127,43 @@ export async function crearLote(formData: FormData) {
   revalidatePath('/');
 }
 
+export type ConsumoRealInsumo = {
+  insumoId: string;
+  cantidad: number;
+};
+
+export type CostoAdicional = {
+  concepto: string;
+  monto: number;
+};
+
+/**
+ * Cierra un lote con su CONSUMO REAL de insumos, no con la fórmula
+ * teórica de la receta: el costo es variable según la inversión de
+ * cada lote (si gastó más miel o más agua, el costo refleja eso).
+ *
+ * - `consumoReal`: cantidad real consumida de cada insumo de la receta.
+ *   Si no se indica un insumo, se usa su cantidad teórica.
+ * - `costosAdicionales`: gastos de producción del lote (gas, mano de
+ *   obra, flete, etc.) que se suman al costo total del lote.
+ *
+ * El costo total = Σ (cantidad real × costo unitario del insumo en ese
+ * momento) + Σ costos adicionales. El costo por botella se divide entre
+ * las botellas reales producidas. Cada consumo queda ligado al lote
+ * (loteProduccionId) y el costo se guarda en el lote y en el producto
+ * terminado, del que luego salen el margen de ventas y el precio del
+ * punto de venta.
+ */
 export async function completarLoteProduccion({
   loteId,
   botellasReales,
+  consumoReal = [],
+  costosAdicionales = [],
 }: {
   loteId: string;
   botellasReales: number;
+  consumoReal?: ConsumoRealInsumo[];
+  costosAdicionales?: CostoAdicional[];
 }) {
   if (!loteId) {
     throw new Error('Debes indicar el lote a completar');
@@ -141,6 +171,32 @@ export async function completarLoteProduccion({
 
   if (!Number.isFinite(botellasReales) || botellasReales <= 0) {
     throw new Error('Las botellas reales deben ser mayores que 0');
+  }
+
+  const consumoPorInsumo = new Map<string, number>();
+  for (const item of consumoReal) {
+    if (!item.insumoId) {
+      continue;
+    }
+    if (!Number.isFinite(item.cantidad) || item.cantidad < 0) {
+      throw new Error('Las cantidades consumidas deben ser 0 o mayores');
+    }
+    consumoPorInsumo.set(item.insumoId, item.cantidad);
+  }
+
+  const adicionalesLimpios: CostoAdicional[] = [];
+  for (const adicional of costosAdicionales) {
+    const concepto = adicional.concepto.trim();
+    if (!concepto && !(adicional.monto > 0)) {
+      continue;
+    }
+    if (!concepto) {
+      throw new Error('Cada costo adicional necesita un concepto');
+    }
+    if (!Number.isFinite(adicional.monto) || adicional.monto < 0) {
+      throw new Error(`El monto de "${concepto}" debe ser 0 o mayor`);
+    }
+    adicionalesLimpios.push({ concepto, monto: adicional.monto });
   }
 
   return prisma.$transaction(async (tx) => {
@@ -167,31 +223,56 @@ export async function completarLoteProduccion({
       throw new Error('El lote ya está completado');
     }
 
-    const costo = await calculateRecipeCost(lote.recetaId);
+    let costoInsumos = 0;
 
     for (const item of lote.receta.recetaInsumos) {
-      const cantidadConsumida = Number(item.cantidadConsumida);
+      const cantidadTeorica = Number(item.cantidadConsumida);
+      const cantidadReal = consumoPorInsumo.has(item.insumoId)
+        ? Number(consumoPorInsumo.get(item.insumoId))
+        : cantidadTeorica;
       const insumo = item.insumo;
-      const nuevoStock = Number(insumo.stockActual) - cantidadConsumida;
+      const costoUnitario = Number(insumo.costoUnitario);
+      const nuevoStock = Number(insumo.stockActual) - cantidadReal;
 
       if (nuevoStock < 0) {
-        throw new Error(`Stock insuficiente de ${insumo.nombre}`);
+        throw new Error(
+          `Stock insuficiente de ${insumo.nombre}: se necesitan ${cantidadReal} ${insumo.unidadMedida} y hay ${Number(insumo.stockActual)}`
+        );
       }
 
-      await tx.insumo.update({
-        where: { id: insumo.id },
-        data: { stockActual: nuevoStock },
-      });
+      costoInsumos += cantidadReal * costoUnitario;
 
-      await tx.insumoMovimiento.create({
+      if (cantidadReal > 0) {
+        await tx.insumo.update({
+          where: { id: insumo.id },
+          data: { stockActual: nuevoStock },
+        });
+
+        await tx.insumoMovimiento.create({
+          data: {
+            insumoId: insumo.id,
+            tipo: 'PRODUCCION_CONSUMO',
+            cantidad: cantidadReal,
+            costoUnitario,
+            total: cantidadReal * costoUnitario,
+            saldoAfter: nuevoStock,
+            referencia: `Lote ${lote.codigoLote}`,
+            loteProduccionId: lote.id,
+          },
+        });
+      }
+    }
+
+    const costoAdicionales = adicionalesLimpios.reduce((sum, a) => sum + a.monto, 0);
+    const costoLote = costoInsumos + costoAdicionales;
+    const costoPorPieza = costoLote / botellasReales;
+
+    for (const adicional of adicionalesLimpios) {
+      await tx.costoAdicionalLote.create({
         data: {
-          insumoId: insumo.id,
-          tipo: 'PRODUCCION_CONSUMO',
-          cantidad: cantidadConsumida,
-          costoUnitario: Number(insumo.costoUnitario),
-          total: cantidadConsumida * Number(insumo.costoUnitario),
-          saldoAfter: nuevoStock,
-          referencia: `Lote ${lote.codigoLote}`,
+          loteProduccionId: lote.id,
+          concepto: adicional.concepto,
+          monto: adicional.monto,
         },
       });
     }
@@ -200,15 +281,15 @@ export async function completarLoteProduccion({
       where: { loteProduccionId: lote.id },
       update: {
         botellasEnStock: botellasReales,
-        costoRealLote: costo.costoLote,
-        costoUnitarioBotella: costo.costoPorPieza,
+        costoRealLote: costoLote,
+        costoUnitarioBotella: costoPorPieza,
       },
       create: {
         loteProduccionId: lote.id,
         recetaId: lote.recetaId,
         botellasEnStock: botellasReales,
-        costoRealLote: costo.costoLote,
-        costoUnitarioBotella: costo.costoPorPieza,
+        costoRealLote: costoLote,
+        costoUnitarioBotella: costoPorPieza,
       },
     });
 
@@ -217,8 +298,8 @@ export async function completarLoteProduccion({
       data: {
         estado: 'COMPLETADO',
         botellasReales,
-        costoTotalLote: costo.costoLote,
-        costoUnitarioPieza: costo.costoPorPieza,
+        costoTotalLote: costoLote,
+        costoUnitarioPieza: costoPorPieza,
         fechaProduccion: new Date(),
       },
     });
@@ -226,8 +307,8 @@ export async function completarLoteProduccion({
     return {
       loteId: lote.id,
       productoId: producto.id,
-      costoLote: costo.costoLote,
-      costoPorPieza: costo.costoPorPieza,
+      costoLote,
+      costoPorPieza,
       botellasReales,
     };
   });
@@ -236,6 +317,10 @@ export async function completarLoteProduccion({
 /**
  * Acción de formulario: completa un lote desde la UI de producción.
  * Lee loteId y botellasReales del formulario y valida antes de cerrar.
+ * Además lee el consumo real por insumo (campos consumo_<insumoId>) y
+ * los costos adicionales (campos adicionalConcepto_<n> /
+ * adicionalMonto_<n>). Los campos que vienen vacíos usan la cantidad
+ * teórica de la receta.
  */
 export async function completarLoteForm(formData: FormData) {
   await exigirPermiso('produccion');
@@ -250,7 +335,43 @@ export async function completarLoteForm(formData: FormData) {
     throw new Error('Las botellas reales deben ser mayores que 0');
   }
 
-  await completarLoteProduccion({ loteId, botellasReales });
+  const consumoReal: ConsumoRealInsumo[] = [];
+  const entradasFormulario = Array.from(formData.entries());
+  for (const [clave, valor] of entradasFormulario) {
+    if (!clave.startsWith('consumo_')) {
+      continue;
+    }
+    const insumoId = clave.slice('consumo_'.length);
+    const texto = String(valor).trim();
+    if (!insumoId || texto === '') {
+      continue;
+    }
+    const cantidad = Number(texto);
+    if (!Number.isFinite(cantidad) || cantidad < 0) {
+      throw new Error('Las cantidades consumidas deben ser números 0 o mayores');
+    }
+    consumoReal.push({ insumoId, cantidad });
+  }
+
+  const costosAdicionales: CostoAdicional[] = [];
+  for (const [clave, valor] of entradasFormulario) {
+    if (!clave.startsWith('adicionalConcepto_')) {
+      continue;
+    }
+    const indice = clave.slice('adicionalConcepto_'.length);
+    const concepto = String(valor).trim();
+    const montoTexto = String(formData.get(`adicionalMonto_${indice}`) ?? '').trim();
+    const monto = montoTexto === '' ? 0 : Number(montoTexto);
+    if (!concepto && monto <= 0) {
+      continue;
+    }
+    if (!Number.isFinite(monto) || monto < 0) {
+      throw new Error('Los montos adicionales deben ser números 0 o mayores');
+    }
+    costosAdicionales.push({ concepto, monto });
+  }
+
+  await completarLoteProduccion({ loteId, botellasReales, consumoReal, costosAdicionales });
 
   revalidatePath('/produccion');
   revalidatePath('/historial');
