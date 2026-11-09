@@ -36,6 +36,10 @@ export async function registrarMovimientoInsumo(formData: FormData) {
     throw new Error('El insumo no existe');
   }
 
+  if (!insumo.activo) {
+    throw new Error(`El insumo ${insumo.nombre} está inactivo y no admite movimientos`);
+  }
+
   const stockActual = Number(insumo.stockActual);
   const esSalida = (TIPOS_SALIDA as readonly string[]).includes(tipo);
   const nuevoStock = esSalida ? stockActual - cantidad : stockActual + cantidad;

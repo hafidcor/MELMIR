@@ -9,7 +9,7 @@ import { ArchivosEntidad } from '@/components/archivos';
 import { obtenerInsumos } from '@/app/actions/dashboard';
 import { crearInsumo } from '@/app/actions/produccion';
 import { registrarMovimientoInsumo } from '@/app/actions/historial';
-import { cambiarEstadoInsumo, editarInsumo } from '@/app/actions/insumos';
+import { cambiarEstadoInsumo, editarInsumo, eliminarInsumo, obtenerReferenciasInsumo } from '@/app/actions/insumos';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +29,7 @@ const selectClass =
 export default async function InsumosPage({
   searchParams,
 }: {
-  searchParams?: { q?: string };
+  searchParams?: { q?: string; eliminar?: string; ok?: string };
 }) {
   const busqueda = (searchParams?.q ?? '').trim().toLowerCase();
   const todosInsumos = await obtenerInsumos();
@@ -41,6 +41,37 @@ export default async function InsumosPage({
     : todosInsumos;
   const insumosActivos = todosInsumos.filter((i) => i.activo);
   const stockBajo = insumosActivos.filter((i) => Number(i.stockActual) <= Number(i.stockMinimo));
+
+  const okMensaje =
+    searchParams?.ok === 'editado'
+      ? 'Insumo actualizado correctamente.'
+      : searchParams?.ok === 'eliminado'
+        ? 'Insumo eliminado correctamente.'
+        : null;
+  const volverUrl = busqueda
+    ? `/insumos?q=${encodeURIComponent(searchParams?.q ?? '')}`
+    : '/insumos';
+
+  const eliminarId = (searchParams?.eliminar ?? '').trim();
+  const referenciasEliminar = eliminarId
+    ? await obtenerReferenciasInsumo(eliminarId)
+    : null;
+  const usosEliminar: string[] = [];
+  if (referenciasEliminar) {
+    if (referenciasEliminar.recetas.length > 0) {
+      usosEliminar.push(
+        `${referenciasEliminar.recetas.length === 1 ? 'la receta' : 'las recetas'} ${referenciasEliminar.recetas
+          .map((r) => `«${r}»`)
+          .join(', ')}`
+      );
+    }
+    if (referenciasEliminar.movimientos > 0) {
+      usosEliminar.push(`${referenciasEliminar.movimientos} movimiento(s) de inventario`);
+    }
+    if (referenciasEliminar.archivos > 0) {
+      usosEliminar.push(`${referenciasEliminar.archivos} archivo(s) guardado(s)`);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-slate-100 dark:bg-slate-950 p-6 text-slate-900 dark:text-slate-100">
@@ -55,6 +86,82 @@ export default async function InsumosPage({
             Inventario de materias primas, altas nuevas y movimientos de stock.
           </p>
         </header>
+
+        {okMensaje && (
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/60 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+            <p className="font-medium">✓ {okMensaje}</p>
+            <Link href={volverUrl} className="shrink-0 font-medium underline">
+              Cerrar
+            </Link>
+          </div>
+        )}
+
+        {eliminarId && !referenciasEliminar && (
+          <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/60 p-4 text-sm text-amber-900 dark:text-amber-200">
+            <p className="font-semibold">No se encontró el insumo a eliminar.</p>
+            <p className="mt-1">Puede que ya haya sido eliminado.</p>
+            <Link href={volverUrl} className="mt-2 inline-block font-medium underline">
+              Volver al inventario
+            </Link>
+          </div>
+        )}
+
+        {eliminarId && referenciasEliminar && usosEliminar.length > 0 && (
+          <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/60 p-4 text-sm text-red-900 dark:text-red-200">
+            <p className="font-semibold">
+              No se puede eliminar «{referenciasEliminar.insumo.nombre}» (
+              {referenciasEliminar.insumo.codigo})
+            </p>
+            <p className="mt-1">
+              Está usado en {usosEliminar.join(', ')}. Para no romper el historial ni las
+              recetas, desactívalo en su lugar: seguirá en el historial, pero ya no
+              aparecerá en movimientos ni recetas nuevas.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {referenciasEliminar.insumo.activo && (
+                <form action={cambiarEstadoInsumo}>
+                  <input type="hidden" name="insumoId" value={referenciasEliminar.insumo.id} />
+                  <input type="hidden" name="activo" value="false" />
+                  <Button type="submit" size="sm">
+                    Desactivar insumo
+                  </Button>
+                </form>
+              )}
+              <Link href={volverUrl}>
+                <Button type="button" variant="outline" size="sm">
+                  Cancelar
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {eliminarId && referenciasEliminar && usosEliminar.length === 0 && (
+          <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/60 p-4 text-sm text-red-900 dark:text-red-200">
+            <p className="font-semibold">
+              ¿Eliminar «{referenciasEliminar.insumo.nombre}» (
+              {referenciasEliminar.insumo.codigo}) para siempre?
+            </p>
+            <p className="mt-1">
+              No tiene recetas, movimientos ni archivos asociados, así que se puede borrar
+              sin romper nada. Esta acción no se puede deshacer.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <form action={eliminarInsumo}>
+                <input type="hidden" name="insumoId" value={referenciasEliminar.insumo.id} />
+                <input type="hidden" name="q" value={searchParams?.q ?? ''} />
+                <Button type="submit" variant="destructive" size="sm">
+                  Sí, eliminar
+                </Button>
+              </form>
+              <Link href={volverUrl}>
+                <Button type="button" variant="outline" size="sm">
+                  Cancelar
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {stockBajo.length > 0 && (
           <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/60 p-4 text-sm text-red-900 dark:text-red-200">
@@ -159,18 +266,27 @@ export default async function InsumosPage({
                               </span>
                             )}
                           </td>
-                          <td className="py-2 text-right">
-                            <form action={cambiarEstadoInsumo} className="inline">
-                              <input type="hidden" name="insumoId" value={item.id} />
-                              <input
-                                type="hidden"
-                                name="activo"
-                                value={item.activo ? 'false' : 'true'}
-                              />
-                              <Button type="submit" variant="outline" size="sm">
-                                {item.activo ? 'Desactivar' : 'Reactivar'}
-                              </Button>
-                            </form>
+                          <td className="py-2">
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              <form action={cambiarEstadoInsumo} className="inline">
+                                <input type="hidden" name="insumoId" value={item.id} />
+                                <input
+                                  type="hidden"
+                                  name="activo"
+                                  value={item.activo ? 'false' : 'true'}
+                                />
+                                <Button type="submit" variant="outline" size="sm">
+                                  {item.activo ? 'Desactivar' : 'Reactivar'}
+                                </Button>
+                              </form>
+                              <Link
+                                href={`/insumos?eliminar=${item.id}${busqueda ? `&q=${encodeURIComponent(searchParams?.q ?? '')}` : ''}`}
+                              >
+                                <Button type="button" variant="destructive" size="sm">
+                                  Eliminar
+                                </Button>
+                              </Link>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -186,10 +302,10 @@ export default async function InsumosPage({
           <CardHeader>
             <CardTitle>Editar insumo</CardTitle>
             <CardDescription>
-              Cambia nombre, categoría, costo unitario y stock mínimo. El código y el
-              stock actual no se editan: el stock solo cambia con movimientos, para no
-              perder el historial. No se pueden borrar insumos; para retirarlos, usa
-              «Desactivar» en la tabla.
+              Cambia nombre, código, unidad, categoría, costo unitario y stock mínimo. El
+              stock actual no se edita: solo cambia con movimientos, para no perder el
+              historial. Si un insumo no tiene recetas, movimientos ni archivos, se puede
+              eliminar desde la tabla con confirmación; si los tiene, usa «Desactivar».
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -207,11 +323,30 @@ export default async function InsumosPage({
                     </summary>
                     <form action={editarInsumo} className="mt-4 grid gap-4 md:grid-cols-2">
                       <input type="hidden" name="insumoId" value={item.id} />
+                      <input type="hidden" name="q" value={searchParams?.q ?? ''} />
                       <div>
                         <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                           Nombre
                         </label>
                         <Input name="nombre" defaultValue={item.nombre} required />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                          Código
+                        </label>
+                        <Input name="codigo" defaultValue={item.codigo} required />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                          Unidad
+                        </label>
+                        <select name="unidadMedida" className={selectClass} defaultValue={item.unidadMedida} required>
+                          {UNIDADES.map((u) => (
+                            <option key={u} value={u}>
+                              {u}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div>
                         <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">

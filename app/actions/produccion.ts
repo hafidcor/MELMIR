@@ -58,6 +58,7 @@ export async function crearReceta(formData: FormData) {
   await exigirPermiso('recetas');
   const nombre = String(formData.get('nombre') ?? '').trim();
   const estilo = String(formData.get('estilo') ?? '').trim();
+  const descripcion = String(formData.get('descripcion') ?? '').trim();
   const abv = Number(formData.get('abv') ?? 0);
   const volumenLoteEstimado = Number(formData.get('volumenLoteEstimado') ?? 0);
   const rendimientoBotellas = Number(formData.get('rendimientoBotellas') ?? 0);
@@ -66,10 +67,15 @@ export async function crearReceta(formData: FormData) {
     throw new Error('Nombre, estilo y rendimiento son obligatorios');
   }
 
+  if (descripcion.length > 2000) {
+    throw new Error('La descripción no puede superar los 2000 caracteres');
+  }
+
   await prisma.receta.create({
     data: {
       nombre,
       estilo,
+      descripcion: descripcion || null,
       abv,
       volumenLoteEstimado,
       rendimientoBotellas,

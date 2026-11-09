@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { calculateRecipeCost } from '@/app/lib/costeo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,19 +9,28 @@ import { R2Warning } from '@/components/r2-warning';
 import { ArchivosEntidad, ImagenPrincipal } from '@/components/archivos';
 import { isDbConfigured, prisma } from '@/lib/prisma';
 import { crearReceta } from '@/app/actions/produccion';
-import { agregarInsumoAReceta } from '@/app/actions/recetas';
+import { agregarInsumoAReceta, editarReceta } from '@/app/actions/recetas';
 
 export const dynamic = 'force-dynamic';
 
 const selectClass =
   'flex h-10 w-full rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-slate-100 dark:ring-offset-slate-950';
 
-export default async function RecetasPage() {
+const textareaClass =
+  'flex min-h-24 w-full rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-slate-100 dark:ring-offset-slate-950';
+
+export default async function RecetasPage({
+  searchParams,
+}: {
+  searchParams?: { ok?: string };
+}) {
   let recetas: Array<{
     id: string;
     nombre: string;
     estilo: string;
+    descripcion: string | null;
     abv: unknown;
+    volumenLoteEstimado: unknown;
     rendimientoBotellas: number;
     recetaInsumos: Array<{
       id: string;
@@ -41,7 +52,10 @@ export default async function RecetasPage() {
         },
         orderBy: { nombre: 'asc' },
       });
-      insumos = await prisma.insumo.findMany({ orderBy: { nombre: 'asc' } });
+      insumos = await prisma.insumo.findMany({
+        where: { activo: true },
+        orderBy: { nombre: 'asc' },
+      });
     } catch (error) {
       console.error('RecetasPage: sin acceso a la base de datos', error);
       recetas = [];
@@ -77,6 +91,15 @@ export default async function RecetasPage() {
           </p>
         </header>
 
+        {searchParams?.ok === 'editada' && (
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/60 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+            <p className="font-medium">✓ Receta actualizada correctamente.</p>
+            <Link href="/recetas" className="shrink-0 font-medium underline">
+              Cerrar
+            </Link>
+          </div>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>Nueva receta</CardTitle>
@@ -103,6 +126,18 @@ export default async function RecetasPage() {
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Botellas</label>
                 <Input name="rendimientoBotellas" type="number" placeholder="120" required />
+              </div>
+              <div className="md:col-span-2 xl:col-span-5">
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Descripción (opcional)
+                </label>
+                <textarea
+                  name="descripcion"
+                  rows={3}
+                  maxLength={2000}
+                  placeholder="Notas de sabor, aroma, historia de la receta…"
+                  className={textareaClass}
+                />
               </div>
 
               <div className="xl:col-span-5 flex justify-end pt-2">
@@ -138,12 +173,17 @@ export default async function RecetasPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <ImagenPrincipal
                     entidad="RECETA"
                     entidadId={receta.id}
                     alt={`Foto de ${receta.nombre}`}
                   />
+                  {receta.descripcion && (
+                    <p className="rounded-xl border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+                      {receta.descripcion}
+                    </p>
+                  )}
                   {receta.recetaInsumos.length === 0 && (
                     <p className="text-sm text-slate-500 dark:text-slate-400">
                       Esta receta aún no tiene insumos. Agrégalos con el formulario de abajo.
@@ -211,6 +251,83 @@ export default async function RecetasPage() {
                   descripcion="Foto del producto y documentos guardados en Cloudflare R2. La primera imagen subida se muestra como foto principal."
                 />
               </div>
+
+              <details className="mt-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
+                <summary className="cursor-pointer text-sm font-medium">
+                  Editar receta
+                </summary>
+                <form action={editarReceta} className="mt-4 grid gap-4 md:grid-cols-2">
+                  <input type="hidden" name="recetaId" value={receta.id} />
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Nombre
+                    </label>
+                    <Input name="nombre" defaultValue={receta.nombre} required />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Estilo
+                    </label>
+                    <Input name="estilo" defaultValue={receta.estilo} required />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      ABV
+                    </label>
+                    <Input
+                      name="abv"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      defaultValue={Number(receta.abv ?? 0)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Volumen lote
+                    </label>
+                    <Input
+                      name="volumenLoteEstimado"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      defaultValue={Number(receta.volumenLoteEstimado ?? 0)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Botellas
+                    </label>
+                    <Input
+                      name="rendimientoBotellas"
+                      type="number"
+                      min="1"
+                      defaultValue={receta.rendimientoBotellas}
+                      required
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Descripción (opcional)
+                    </label>
+                    <textarea
+                      name="descripcion"
+                      rows={3}
+                      maxLength={2000}
+                      placeholder="Notas de sabor, aroma, historia de la receta…"
+                      defaultValue={receta.descripcion ?? ''}
+                      className={textareaClass}
+                    />
+                  </div>
+                  <div className="md:col-span-2 flex justify-end pt-2">
+                    <Button type="submit" size="sm">
+                      Guardar cambios
+                    </Button>
+                  </div>
+                </form>
+              </details>
             </CardContent>
           </Card>
         ))}

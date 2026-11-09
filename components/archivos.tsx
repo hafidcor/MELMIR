@@ -179,18 +179,21 @@ export async function ImagenPrincipal({
   alt: string;
 }) {
   const archivos = await obtenerArchivos(entidad, entidadId);
-  const imagen = archivos.find((a) => esImagen(a.tipoMime));
+  // obtenerArchivos ordena por fecha descendente: la última imagen de la
+  // lista es la primera que se subió, y esa es la foto principal.
+  const imagenes = archivos.filter((a) => esImagen(a.tipoMime));
+  const imagen = imagenes[imagenes.length - 1];
   if (!imagen) {
     return null;
   }
   return (
-    <Link href={imagen.url} target="_blank" rel="noreferrer">
+    <Link href={imagen.url} target="_blank" rel="noreferrer" className="block">
       <Image
         src={imagen.url}
         alt={alt}
-        width={320}
-        height={200}
-        className="h-48 w-full rounded-xl object-cover"
+        width={640}
+        height={360}
+        className="h-56 w-full rounded-xl border border-slate-200 dark:border-slate-800 object-cover sm:h-64"
         unoptimized
       />
     </Link>

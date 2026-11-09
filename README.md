@@ -131,7 +131,8 @@ queda desactivada (mismo patrón que `DATABASE_URL`).
 
 ## Módulos incluidos
 - Inventario de insumos (tabla real, altas y movimientos de stock)
-- Gestión de recetas (costeo por lote y por pieza, agregar insumos a la receta)
+- Gestión de recetas (costeo por lote y por pieza, agregar insumos a la receta,
+  descripción opcional con foto principal, edición completa de la receta)
 - Costeo automático por lote y por pieza
 - Producción y cierre de lotes (completar lote con validación de stock)
 - Producto terminado y stock
@@ -201,13 +202,17 @@ queda desactivada (mismo patrón que `DATABASE_URL`).
   botellas del `ProductoTerminado` en la misma transacción. Tabla de ventas
   con totales y resumen (botellas vendidas, ingresos, número de ventas).
   Las ventas también aparecen en el Historial y en el Dashboard.
-- **Editar insumos (`/insumos`)**: cada insumo se puede editar (nombre,
-  categoría, costo unitario y stock mínimo) desde un formulario desplegable;
-  el código y el stock actual no se editan, el stock solo cambia con
-  movimientos. Botón para desactivar/reactivar: la desactivación es el
-  camino para retirar un insumo con movimientos o recetas asociadas, no se
-  pueden borrar insumos. Los insumos inactivos no aparecen en los
-  formularios de movimientos.
+- **Editar y borrar insumos (`/insumos`)**: cada insumo se puede editar (nombre,
+  código único, unidad, categoría, costo unitario y stock mínimo) desde un
+  formulario desplegable; el stock actual no se edita, solo cambia con
+  movimientos. Al guardar aparece una confirmación y se vuelve a la lista.
+  Botón **Eliminar** con confirmación en dos pasos: solo ADMIN y OPERADOR
+  pueden borrar, y solo si el insumo no está en ninguna receta, no tiene
+  movimientos ni archivos; si los tiene, el borrado se rechaza explicando
+  dónde está usado y la alternativa es desactivarlo. Botón para
+  desactivar/reactivar. Los insumos inactivos se ven atenuados con la
+  etiqueta «Inactivo» y no aparecen en los formularios de movimientos ni de
+  recetas.
 - **Búsqueda y filtros (sin librerías nuevas, con `searchParams`)**:
   buscador por nombre o código en `/insumos`, buscador por insumo o
   referencia en `/historial`, y filtro por estado (PENDIENTE / EN_PRODUCCION /
@@ -267,6 +272,28 @@ queda desactivada (mismo patrón que `DATABASE_URL`).
   `/api/respaldos/[...clave]`, que hace streaming desde R2 solo para ADMIN.
   El respaldo NUNCA incluye `Usuario.contrasenaHash` ni secretos. La
   restauración es manual: se descarga el JSON y se reimporta a mano.
+
+## Novedades: edición completa de insumos, borrado y descripción de recetas
+
+- **Editar insumos (`/insumos`)**: el formulario desplegable ahora permite
+  editar nombre, código (único), unidad, categoría, costo unitario y stock
+  mínimo, con validación en el servidor. El stock actual sigue sin
+  editarse: solo cambia con movimientos. Al guardar, la página vuelve a la
+  lista con una confirmación verde.
+- **Borrar insumos (`/insumos`, solo ADMIN y OPERADOR)**: botón «Eliminar»
+  por insumo con confirmación en dos pasos (primero se abre un aviso y
+  luego se confirma). El borrado se rechaza si el insumo está en alguna
+  receta, tiene movimientos de inventario o archivos guardados, explicando
+  dónde está usado; en esos casos la alternativa es «Desactivar». Sin
+  referencias se borra de verdad (hard delete).
+- **Descripción y fotos de recetas (`/recetas`, modelo `Receta.descripcion`
+  opcional)**: cada hidromiel puede llevar una descripción (hasta 2000
+  caracteres) en el formulario de crear y en el de editar. Se muestra en la
+  tarjeta de la receta junto a su foto principal, que ahora se ve más
+  grande; la foto principal es la primera imagen subida.
+- **Insumos inactivos**: ya no aparecen como opción al agregar insumos a
+  recetas nuevas (en movimientos ya se filtraban) y el servidor también lo
+  rechaza si se intenta por la fuerza.
 
 ## Estructura principal
 - `app/` páginas y listas principales

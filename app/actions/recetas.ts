@@ -1,5 +1,6 @@
 'use server';
 
+import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { isDbConfigured, prisma } from '@/lib/prisma';
 import { exigirPermiso } from '@/lib/auth';
@@ -83,4 +84,62 @@ export async function agregarInsumoAReceta(formData: FormData) {
 
   revalidatePath('/recetas');
   revalidatePath('/precios');
+}
+
+/**
+ * Edita una receta existente: nombre, estilo, descripción, ABV, volumen
+ * del lote y rendimiento. La descripción es opcional y puede quedar
+ * vacía. Al guardar, vuelve a la lista con una confirmación clara.
+ */
+export async function editarReceta(formData: FormData) {
+  await exigirPermiso('recetas');
+  const recetaId = String(formData.get('recetaId') ?? '').trim();
+  const nombre = String(formData.get('nombre') ?? '').trim();
+  const estilo = String(formData.get('estilo') ?? '').trim();
+  const descripcion = String(formData.get('descripcion') ?? '').trim();
+  const abv = Number(formData.get('abv') ?? 0);
+  const volumenLoteEstimado = Number(formData.get('volumenLoteEstimado') ?? 0);
+  const rendimientoBotellas = Number(formData.get('rendimientoBotellas') ?? 0);
+
+  if (!recetaId) {
+    throw new Error('Debes indicar la receta a editar');
+  }
+
+  if (!nombre || !estilo || rendimientoBotellas <= 0) {
+    throw new Error('Nombre, estilo y rendimiento son obligatorios');
+  }
+
+  if (abv < 0 || volumenLoteEstimado < 0) {
+    throw new Error('El ABV y el volumen del lote deben ser 0 o mayores');
+  }
+
+  if (descripcion.length > 2000) {
+    throw new Error('La descripción no puede superar los 2000 caracteres');
+  }
+
+  if (!isDbConfigured()) {
+    throw new Error('Configura DATABASE_URL en Vercel para editar recetas');
+  }
+
+  const receta = await prisma.receta.findUnique({ where: { id: recetaId } });
+  if (!receta) {
+    throw new Error('La receta no existe');
+  }
+
+  await prisma.receta.update({
+    where: { id: recetaId },
+    data: {
+      nombre,
+      estilo,
+      descripcion: descripcion || null,
+      abv,
+      volumenLoteEstimado,
+      rendimientoBotellas,
+    },
+  });
+
+  revalidatePath('/recetas');
+  revalidatePath('/precios');
+  revalidatePath('/');
+  redirect('/recetas?ok=editada');
 }
