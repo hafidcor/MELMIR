@@ -51,6 +51,19 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/respaldo', label: 'Respaldos', icono: DatabaseBackup },
 ];
 
+// Agrupación de la barra lateral de escritorio. El drawer móvil sigue
+// mostrando la lista plana, como le gusta al usuario.
+const GRUPOS_NAV: { titulo: string; hrefs: string[] }[] = [
+  { titulo: 'Principal', hrefs: ['/', '/dashboard'] },
+  { titulo: 'Operación', hrefs: ['/insumos', '/recetas', '/produccion', '/precios'] },
+  { titulo: 'Ventas', hrefs: ['/ventas', '/pos', '/clientes', '/pedidos'] },
+  { titulo: 'Sistema', hrefs: ['/archivos', '/historial', '/usuarios', '/respaldo'] },
+];
+
+// Ancho de la barra lateral de escritorio. app/layout.tsx desplaza el
+// contenido con el mismo valor (lg:pl-[272px]) para que nada quede tapado.
+const ANCHO_BARRA_LATERAL = 'w-[272px]';
+
 // Barra inferior móvil: los 4 destinos más usados + el menú completo.
 const BARRA_MOVIL: NavItem[] = [
   { href: '/', label: 'Inicio', icono: Home },
@@ -98,6 +111,24 @@ function EnlaceNav({
   );
 }
 
+function LogoMelmir() {
+  return (
+    <Link href="/" className="flex min-w-0 items-center gap-2">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-sm font-bold text-white">
+        M
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-400">
+          MELMIR
+        </p>
+        <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+          ERP Hidromiel
+        </p>
+      </div>
+    </Link>
+  );
+}
+
 export function Navegacion({
   usuario,
   authActiva,
@@ -112,28 +143,98 @@ export function Navegacion({
   const itemsNav = NAV_ITEMS.map((item) =>
     item.href === '/insumos' ? { ...item, alerta: alertasStock } : item
   );
+  // En /login no hay barra lateral: la página queda como hoy, solo con
+  // la cabecera. La ficha pública /hidromiel ni siquiera monta este
+  // componente (ver app/layout.tsx).
+  const esLogin = pathname === '/login';
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/90">
+      {/* Barra lateral fija de escritorio (lg en adelante): logo arriba,
+          enlaces en vertical agrupados por sección y pie con tema y sesión.
+          La barra superior horizontal con scroll ya no existe. */}
+      {!esLogin && (
+        <aside
+          className={`fixed inset-y-0 left-0 z-40 hidden ${ANCHO_BARRA_LATERAL} flex-col border-r border-slate-200 bg-white lg:flex dark:border-slate-800 dark:bg-slate-950`}
+        >
+          <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+            <LogoMelmir />
+          </div>
+
+          <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Navegación principal">
+            {GRUPOS_NAV.map((grupo) => (
+              <div key={grupo.titulo} className="mt-5 first:mt-0">
+                <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  {grupo.titulo}
+                </p>
+                <div className="space-y-1">
+                  {grupo.hrefs.map((href) => {
+                    const item = itemsNav.find((i) => i.href === href);
+                    if (!item) return null;
+                    return (
+                      <EnlaceNav
+                        key={href}
+                        item={item}
+                        activo={esActivo(pathname, href)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
+
+          <div className="border-t border-slate-200 px-4 py-4 dark:border-slate-800">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-600 dark:text-slate-300">Tema</span>
+              <TemaToggle />
+            </div>
+            {usuario ? (
+              <div className="mt-3 space-y-2">
+                <p className="truncate text-sm text-slate-600 dark:text-slate-300">
+                  {usuario.nombre} · {usuario.rol}
+                </p>
+                <form action={cerrarSesion}>
+                  <button
+                    type="submit"
+                    className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-100 text-sm font-medium text-slate-800 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Cerrar sesión
+                  </button>
+                </form>
+              </div>
+            ) : authActiva ? (
+              <Link
+                href="/login"
+                className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 text-sm font-medium text-white transition hover:bg-emerald-700"
+              >
+                <LogIn className="h-4 w-4" />
+                Iniciar sesión
+              </Link>
+            ) : (
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                Aún no hay usuarios: la app está abierta. Crea el primer usuario en
+                Usuarios.
+              </p>
+            )}
+          </div>
+        </aside>
+      )}
+
+      {/* Cabecera para móvil y tablet (en escritorio la sustituye la barra
+          lateral). En /login se muestra a cualquier ancho, sin enlaces. */}
+      <header
+        className={`sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/90 ${
+          esLogin ? '' : 'lg:hidden'
+        }`}
+      >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-          <Link href="/" className="flex min-w-0 items-center gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-sm font-bold text-white">
-              M
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-400">
-                MELMIR
-              </p>
-              <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-                ERP Hidromiel
-              </p>
-            </div>
-          </Link>
+          <LogoMelmir />
 
           <div className="flex items-center gap-2">
             <TemaToggle />
-            {usuario ? (
+            {!esLogin && usuario ? (
               <>
                 <span className="hidden max-w-40 truncate rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 sm:block dark:bg-slate-800 dark:text-slate-200">
                   {usuario.nombre} · {usuario.rol}
@@ -149,7 +250,7 @@ export function Navegacion({
                   </button>
                 </form>
               </>
-            ) : authActiva ? (
+            ) : !esLogin && authActiva ? (
               <Link
                 href="/login"
                 className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
@@ -162,19 +263,12 @@ export function Navegacion({
               type="button"
               onClick={() => setMenuAbierto(true)}
               aria-label="Abrir menú"
-              className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100 md:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100 lg:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               <Menu className="h-5 w-5" />
             </button>
           </div>
         </div>
-
-        {/* Navegación de escritorio: todos los enlaces con estado activo. */}
-        <nav className="mx-auto hidden max-w-7xl items-center gap-1 overflow-x-auto px-4 pb-3 sm:px-6 md:flex lg:px-8">
-          {itemsNav.map((item) => (
-            <EnlaceNav key={item.href} item={item} activo={esActivo(pathname, item.href)} />
-          ))}
-        </nav>
       </header>
 
       {/* Barra inferior fija en móvil: botones grandes y táctiles. */}
@@ -211,7 +305,7 @@ export function Navegacion({
         </div>
       </nav>
 
-      {/* Menú deslizable con todos los enlaces (móvil y escritorio). */}
+      {/* Menú deslizable con todos los enlaces (móvil y tablet). */}
       {menuAbierto && (
         <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Menú">
           <button
