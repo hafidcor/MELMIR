@@ -1,20 +1,65 @@
-import { prisma } from '@/lib/prisma';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
 
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DbWarning } from '@/components/db-warning';
+import { isDbConfigured, prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * Dashboard ejecutivo: distinto del home. Se centra en alertas y en lo
+ * que necesita atención hoy: stock bajo, lotes abiertos y producto en stock.
+ * Sin base de datos muestra ceros y estados vacíos, sin error 500.
+ */
 export default async function DashboardPage() {
-  const totalInsumos = await prisma.insumo.count();
-  const totalRecetas = await prisma.receta.count();
-  const totalLotes = await prisma.loteProduccion.count();
-  const productoTerminado = await prisma.productoTerminado.aggregate({
-    _sum: { botellasEnStock: true },
-  });
+  let totalInsumos = 0;
+  let totalRecetas = 0;
+  let totalLotes = 0;
+  let stockFinal = 0;
+  let stockBajo: Array<{ id: string; nombre: string; stockActual: unknown; stockMinimo: unknown; unidadMedida: string }> = [];
+  let lotesAbiertos: Array<{ id: string; codigoLote: string; estado: string; botellasEsperadas: number; receta: { nombre: string } }> = [];
+  let productos: Array<{ id: string; botellasEnStock: number; costoUnitarioBotella: unknown; receta: { nombre: string }; loteProduccion: { codigoLote: string } }> = [];
+
+  if (isDbConfigured()) {
+    try {
+      const [insumos, recetas, lotes, productoTerminado, productosTerminados] = await Promise.all([
+        prisma.insumo.findMany({ orderBy: { nombre: 'asc' } }),
+        prisma.receta.count(),
+        prisma.loteProduccion.findMany({
+          include: { receta: true },
+          orderBy: { createdAt: 'desc' },
+        }),
+        prisma.productoTerminado.aggregate({ _sum: { botellasEnStock: true } }),
+        prisma.productoTerminado.findMany({
+          include: { receta: true, loteProduccion: true },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+
+      totalInsumos = insumos.length;
+      totalRecetas = recetas;
+      totalLotes = lotes.length;
+      stockFinal = productoTerminado._sum.botellasEnStock ?? 0;
+      stockBajo = insumos.filter((i) => Number(i.stockActual) <= Number(i.stockMinimo));
+      lotesAbiertos = lotes.filter((l) => l.estado === 'PENDIENTE' || l.estado === 'EN_PRODUCCION');
+      productos = productosTerminados;
+    } catch (error) {
+      console.error('DashboardPage: sin acceso a la base de datos', error);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
       <div className="mx-auto max-w-6xl space-y-6">
+        <DbWarning />
+
         <header>
           <p className="text-sm uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
           <h1 className="mt-2 text-3xl font-bold">Dashboard ejecutivo</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Lo que necesita atención hoy: stock, lotes abiertos y producto terminado.
+          </p>
         </header>
 
         <section className="grid gap-4 md:grid-cols-4">
@@ -39,10 +84,111 @@ export default async function DashboardPage() {
           <Card>
             <CardHeader>
               <CardDescription>Stock final</CardDescription>
-              <CardTitle>{productoTerminado._sum.botellasEnStock ?? 0}</CardTitle>
+              <CardTitle>{stockFinal} bot.</CardTitle>
             </CardHeader>
           </Card>
         </section>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <div>
+              <CardTitle>Alerta de stock bajo</CardTitle>
+              <CardDescription>Insumos con stock igual o menor al mínimo</CardDescription>
+            </div>
+            <Link href="/insumos">
+              <Button variant="outline" size="sm">
+                Ir a insumos
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {stockBajo.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No hay insumos en stock bajo. Si la base de datos no está configurada, aquí
+                aparecerán las alertas cuando haya datos.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {stockBajo.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm"
+                  >
+                    <span className="font-medium">{item.nombre}</span>
+                    <span className="font-semibold text-red-700">
+                      {Number(item.stockActual)} / mín. {Number(item.stockMinimo)} {item.unidadMedida}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Lotes pendientes y en producción</CardTitle>
+              <CardDescription>Órdenes abiertas que necesitan cierre</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {lotesAbiertos.length === 0 ? (
+                <p className="text-sm text-slate-500">No hay lotes abiertos.</p>
+              ) : (
+                <div className="space-y-3">
+                  {lotesAbiertos.map((lote) => (
+                    <div key={lote.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                      <div>
+                        <p className="font-semibold">{lote.codigoLote}</p>
+                        <p className="text-slate-500">{lote.receta.nombre}</p>
+                      </div>
+                      <div className="text-right">
+                        <p>{lote.estado}</p>
+                        <p className="text-slate-500">{lote.botellasEsperadas} bot. esperadas</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-4">
+                <Link href="/produccion">
+                  <Button variant="outline" size="sm">
+                    Ir a producción
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Producto terminado en stock</CardTitle>
+              <CardDescription>Botellas listas por lote</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {productos.length === 0 ? (
+                <p className="text-sm text-slate-500">Aún no hay producto terminado en stock.</p>
+              ) : (
+                <div className="space-y-3">
+                  {productos.slice(0, 8).map((producto) => (
+                    <div key={producto.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                      <div>
+                        <p className="font-semibold">{producto.receta.nombre}</p>
+                        <p className="text-slate-500">{producto.loteProduccion.codigoLote}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">{producto.botellasEnStock} bot.</p>
+                        <p className="text-slate-500">
+                          ${Number(producto.costoUnitarioBotella).toFixed(2)} c/u
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </main>
   );

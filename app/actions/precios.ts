@@ -1,4 +1,6 @@
-import { prisma } from '@/lib/prisma';
+'use server';
+
+import { isDbConfigured, prisma } from '@/lib/prisma';
 import { calculateRecipeCost } from '@/app/lib/costeo';
 
 export async function obtenerPrecioCalculado(costoUnitario: number) {
@@ -11,14 +13,31 @@ export async function obtenerPrecioCalculado(costoUnitario: number) {
 }
 
 export async function obtenerMetricaReceta(recetaId: string) {
-  const data = await calculateRecipeCost(recetaId);
-  return data;
+  if (!isDbConfigured()) {
+    return { costoLote: 0, costoPorPieza: 0 };
+  }
+
+  try {
+    return await calculateRecipeCost(recetaId);
+  } catch (error) {
+    console.error('obtenerMetricaReceta: sin acceso a la base de datos', error);
+    return { costoLote: 0, costoPorPieza: 0 };
+  }
 }
 
 export async function listarProductosTerminados() {
-  return prisma.productoTerminado.findMany({
-    include: {
-      receta: true,
-    },
-  });
+  if (!isDbConfigured()) {
+    return [];
+  }
+
+  try {
+    return await prisma.productoTerminado.findMany({
+      include: {
+        receta: true,
+      },
+    });
+  } catch (error) {
+    console.error('listarProductosTerminados: sin acceso a la base de datos', error);
+    return [];
+  }
 }

@@ -3,6 +3,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { obtenerDashboard, obtenerHistorialReciente, obtenerInsumos, obtenerLotes, obtenerRecetas } from '@/app/actions/dashboard';
+import { DbWarning } from '@/components/db-warning';
+
+export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
   const dashboard = await obtenerDashboard();
@@ -14,6 +17,7 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
       <div className="mx-auto max-w-7xl space-y-8">
+        <DbWarning />
         <header className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>

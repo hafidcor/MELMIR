@@ -5,25 +5,48 @@ import { prisma } from '@/lib/prisma';
 import { calculateRecipeCost } from '@/app/lib/costeo';
 
 export async function crearInsumo(formData: FormData) {
-  const codigo = String(formData.get('codigo') ?? '');
-  const nombre = String(formData.get('nombre') ?? '');
-  const categoria = String(formData.get('categoria') ?? '');
+  const codigo = String(formData.get('codigo') ?? '').trim();
+  const nombre = String(formData.get('nombre') ?? '').trim();
+  const categoria = String(formData.get('categoria') ?? '').trim();
   const unidadMedida = String(formData.get('unidadMedida') ?? 'KG');
   const costoUnitario = Number(formData.get('costoUnitario') ?? 0);
   const stockActual = Number(formData.get('stockActual') ?? 0);
   const stockMinimo = Number(formData.get('stockMinimo') ?? 0);
 
-  await prisma.insumo.create({
-    data: {
-      codigo,
-      nombre,
-      categoria,
-      unidadMedida: unidadMedida as any,
-      costoUnitario,
-      stockActual,
-      stockMinimo,
-    },
-  });
+  if (!codigo || !nombre || !categoria) {
+    throw new Error('El código, el nombre y la categoría son obligatorios');
+  }
+
+  if (!Number.isFinite(costoUnitario) || costoUnitario < 0) {
+    throw new Error('El costo unitario debe ser 0 o mayor');
+  }
+
+  if (!Number.isFinite(stockActual) || stockActual < 0) {
+    throw new Error('El stock actual debe ser 0 o mayor');
+  }
+
+  if (!Number.isFinite(stockMinimo) || stockMinimo < 0) {
+    throw new Error('El stock mínimo debe ser 0 o mayor');
+  }
+
+  try {
+    await prisma.insumo.create({
+      data: {
+        codigo,
+        nombre,
+        categoria,
+        unidadMedida: unidadMedida as any,
+        costoUnitario,
+        stockActual,
+        stockMinimo,
+      },
+    });
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      throw new Error(`Ya existe un insumo con el código ${codigo}`);
+    }
+    throw error;
+  }
 
   revalidatePath('/insumos');
   revalidatePath('/');
@@ -93,6 +116,14 @@ export async function completarLoteProduccion({
   loteId: string;
   botellasReales: number;
 }) {
+  if (!loteId) {
+    throw new Error('Debes indicar el lote a completar');
+  }
+
+  if (!Number.isFinite(botellasReales) || botellasReales <= 0) {
+    throw new Error('Las botellas reales deben ser mayores que 0');
+  }
+
   return prisma.$transaction(async (tx) => {
     const lote = await tx.loteProduccion.findUnique({
       where: { id: loteId },
@@ -123,6 +154,10 @@ export async function completarLoteProduccion({
       const cantidadConsumida = Number(item.cantidadConsumida);
       const insumo = item.insumo;
       const nuevoStock = Number(insumo.stockActual) - cantidadConsumida;
+
+      if (nuevoStock < 0) {
+        throw new Error(`Stock insuficiente de ${insumo.nombre}`);
+      }
 
       await tx.insumo.update({
         where: { id: insumo.id },
@@ -177,6 +212,30 @@ export async function completarLoteProduccion({
       botellasReales,
     };
   });
+}
+
+/**
+ * Acción de formulario: completa un lote desde la UI de producción.
+ * Lee loteId y botellasReales del formulario y valida antes de cerrar.
+ */
+export async function completarLoteForm(formData: FormData) {
+  const loteId = String(formData.get('loteId') ?? '').trim();
+  const botellasReales = Number(formData.get('botellasReales') ?? 0);
+
+  if (!loteId) {
+    throw new Error('Debes indicar el lote a completar');
+  }
+
+  if (!Number.isFinite(botellasReales) || botellasReales <= 0) {
+    throw new Error('Las botellas reales deben ser mayores que 0');
+  }
+
+  await completarLoteProduccion({ loteId, botellasReales });
+
+  revalidatePath('/produccion');
+  revalidatePath('/historial');
+  revalidatePath('/precios');
+  revalidatePath('/');
 }
 
 export async function obtenerPrecioVenta({

@@ -2,36 +2,76 @@ import { calculateRecipeCost } from '@/app/lib/costeo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { prisma } from '@/lib/prisma';
-import { crearReceta, crearLote } from '@/app/actions/produccion';
+import { DbWarning } from '@/components/db-warning';
+import { isDbConfigured, prisma } from '@/lib/prisma';
+import { crearReceta } from '@/app/actions/produccion';
+import { agregarInsumoAReceta } from '@/app/actions/recetas';
+
+export const dynamic = 'force-dynamic';
+
+const selectClass =
+  'flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-emerald-500';
 
 export default async function RecetasPage() {
-  const recetas = await prisma.receta.findMany({
-    include: {
-      recetaInsumos: {
+  let recetas: Array<{
+    id: string;
+    nombre: string;
+    estilo: string;
+    abv: unknown;
+    rendimientoBotellas: number;
+    recetaInsumos: Array<{
+      id: string;
+      cantidadConsumida: unknown;
+      insumo: { id: string; nombre: string; unidadMedida: string };
+    }>;
+  }> = [];
+  let insumos: Array<{ id: string; nombre: string; unidadMedida: string }> = [];
+
+  if (isDbConfigured()) {
+    try {
+      recetas = await prisma.receta.findMany({
         include: {
-          insumo: true,
+          recetaInsumos: {
+            include: {
+              insumo: true,
+            },
+          },
         },
-      },
-    },
-  });
+        orderBy: { nombre: 'asc' },
+      });
+      insumos = await prisma.insumo.findMany({ orderBy: { nombre: 'asc' } });
+    } catch (error) {
+      console.error('RecetasPage: sin acceso a la base de datos', error);
+      recetas = [];
+      insumos = [];
+    }
+  }
 
   const recetasConCosto = await Promise.all(
-    recetas.map(async (receta) => ({
-      ...receta,
-      costo: await calculateRecipeCost(receta.id),
-    }))
+    recetas.map(async (receta) => {
+      try {
+        const costo = await calculateRecipeCost(receta.id);
+        return { ...receta, costo };
+      } catch {
+        return {
+          ...receta,
+          costo: { costoLote: 0, costoPorPieza: 0 },
+        };
+      }
+    })
   );
 
   return (
     <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
       <div className="mx-auto max-w-6xl space-y-6">
-        <header className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
-            <h1 className="mt-2 text-3xl font-bold">Gestor de recetas</h1>
-          </div>
-          <Button variant="outline">Duplicar receta</Button>
+        <DbWarning />
+
+        <header>
+          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">MELMIR</p>
+          <h1 className="mt-2 text-3xl font-bold">Gestor de recetas</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Fórmulas de hidromiel, sus insumos y su costo por lote.
+          </p>
         </header>
 
         <Card>
@@ -69,25 +109,38 @@ export default async function RecetasPage() {
           </CardContent>
         </Card>
 
+        {recetasConCosto.length === 0 && (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-slate-500">
+                Aún no hay recetas registradas. Crea la primera con el formulario de arriba.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {recetasConCosto.map((receta) => (
           <Card key={receta.id}>
             <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <CardTitle>{receta.nombre}</CardTitle>
                 <CardDescription>
-                  {receta.estilo} · {receta.rendimientoBotellas} botellas · ABV {Number(receta.abv ?? 0).toFixed(1)}%
+                  {receta.estilo} · {receta.rendimientoBotellas} botellas · ABV{' '}
+                  {Number(receta.abv ?? 0).toFixed(1)}%
                 </CardDescription>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm">
-                  Editar
-                </Button>
-                <Button size="sm">Costo: ${receta.costo.costoLote.toFixed(2)}</Button>
+              <div className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+                Costo del lote: ${receta.costo.costoLote.toFixed(2)}
               </div>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
                 <div className="space-y-2">
+                  {receta.recetaInsumos.length === 0 && (
+                    <p className="text-sm text-slate-500">
+                      Esta receta aún no tiene insumos. Agrégalos con el formulario de abajo.
+                    </p>
+                  )}
                   {receta.recetaInsumos.map((ri) => (
                     <div key={ri.id} className="flex justify-between border-b pb-2 text-sm">
                       <span>{ri.insumo.nombre}</span>
@@ -96,6 +149,32 @@ export default async function RecetasPage() {
                       </span>
                     </div>
                   ))}
+
+                  <form action={agregarInsumoAReceta} className="flex flex-wrap items-end gap-3 pt-3">
+                    <input type="hidden" name="recetaId" value={receta.id} />
+                    <div className="min-w-48 flex-1">
+                      <label className="mb-1 block text-sm font-medium text-slate-700">
+                        Agregar insumo
+                      </label>
+                      <select name="insumoId" className={selectClass} defaultValue="" required>
+                        <option value="" disabled>
+                          Selecciona un insumo
+                        </option>
+                        {insumos.map((insumo) => (
+                          <option key={insumo.id} value={insumo.id}>
+                            {insumo.nombre} ({insumo.unidadMedida})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="w-32">
+                      <label className="mb-1 block text-sm font-medium text-slate-700">Cantidad</label>
+                      <Input name="cantidad" type="number" step="0.01" min="0.01" placeholder="12" required />
+                    </div>
+                    <Button type="submit" size="sm">
+                      Agregar a la receta
+                    </Button>
+                  </form>
                 </div>
 
                 <div className="rounded-xl bg-slate-50 p-4">

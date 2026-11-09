@@ -10,7 +10,8 @@ export const metadata: Metadata = {
 };
 
 const navItems = [
-  { href: '/', label: 'Dashboard' },
+  { href: '/', label: 'Inicio' },
+  { href: '/dashboard', label: 'Dashboard' },
   { href: '/insumos', label: 'Insumos' },
   { href: '/recetas', label: 'Recetas' },
   { href: '/produccion', label: 'Producción' },
@@ -62,6 +63,18 @@ export default function RootLayout({
                 </Link>
               </div>
             </div>
+
+            <nav className="flex gap-1 overflow-x-auto px-4 pb-3 md:hidden">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
           </header>
 
           <main>{children}</main>

@@ -80,15 +80,15 @@ async function main() {
     }
   }
 
-  const loteExistente = await prisma.loteProduccion.findFirst({
+  let lote = await prisma.loteProduccion.findFirst({
     where: { codigoLote: 'LT-001' },
   });
 
-  if (!loteExistente) {
+  if (!lote) {
     const receta = await prisma.receta.findFirst({ where: { nombre: 'Hidromiel Clásica' } });
 
     if (receta) {
-      await prisma.loteProduccion.create({
+      lote = await prisma.loteProduccion.create({
         data: {
           codigoLote: 'LT-001',
           recetaId: receta.id,
@@ -101,6 +101,26 @@ async function main() {
         },
       });
     }
+  }
+
+  // El lote LT-001 está COMPLETADO, así que debe tener su producto
+  // terminado correspondiente en stock (antes el seed lo dejaba huérfano).
+  if (lote) {
+    await prisma.productoTerminado.upsert({
+      where: { loteProduccionId: lote.id },
+      update: {
+        botellasEnStock: 118,
+        costoRealLote: 1248.3,
+        costoUnitarioBotella: 10.4,
+      },
+      create: {
+        loteProduccionId: lote.id,
+        recetaId: lote.recetaId,
+        botellasEnStock: 118,
+        costoRealLote: 1248.3,
+        costoUnitarioBotella: 10.4,
+      },
+    });
   }
 }
 
