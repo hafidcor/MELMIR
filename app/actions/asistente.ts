@@ -166,7 +166,7 @@ function textoEstadoLote(lote: LoteCompleto, hoy: Date): string {
   const seguimiento = calcularSeguimientoLote(aSeguimientoInput(lote), hoy);
   const lineas: string[] = [
     `Lote ${lote.codigoLote} · ${lote.receta.nombre}`,
-    `Estado: ${lote.estado === 'PENDIENTE' ? 'Pendiente' : lote.estado === 'EN_PRODUCCION' ? 'En producción' : lote.estado === 'COMPLETADO' ? 'Completado' : 'Cancelado'} · Avance: ${seguimiento.etapasHechas}/${seguimiento.etapasTotal} etapas (${seguimiento.avancePorcentaje}%)`,
+    `Estado: ${lote.estado === 'PENDIENTE' ? 'Pendiente' : lote.estado === 'EN_PRODUCCION' ? 'En producción' : lote.estado === 'COMPLETADO' ? 'Completado' : 'Cancelado'} · Avance: ${seguimiento.etapasTotal === 0 ? 'sin etapas registradas' : `${seguimiento.etapasHechas}/${seguimiento.etapasTotal} etapas (${seguimiento.avancePorcentaje}%)`}`,
     `Cuenta regresiva: ${seguimiento.cuentaRegresivaLote.texto}${seguimiento.fechaEstimadaLista ? ` (estimado: ${fechaCorta(seguimiento.fechaEstimadaLista)})` : ''}`,
   ];
 
@@ -305,34 +305,52 @@ export async function obtenerResumenHoy(): Promise<ResumenHoy> {
           : 'Todo en orden: no hay etapas vencidas, problemas abiertos ni lotes esperando.'
       );
     }
+    if (
+      hayPendientes &&
+      seguimiento.etapasVencidas.length === 0 &&
+      seguimiento.etapasPorVencer.length === 0 &&
+      seguimiento.problemasAbiertos.length === 0 &&
+      stockBajo.length === 0
+    ) {
+      lineasResumen.push('', 'Sin etapas vencidas ni problemas abiertos; el stock está en orden.');
+    }
 
-    // Tarjeta del Dashboard: máx. 3 líneas cortas.
+    // Tarjeta del Dashboard: máx. 3 líneas cortas, siempre explícitas.
     const lineasCortas: string[] = [];
-    if (seguimiento.etapasVencidas.length > 0 || seguimiento.etapasPorVencer.length > 0) {
-      const partes: string[] = [];
+    const sinPendientes =
+      seguimiento.etapasVencidas.length === 0 &&
+      seguimiento.etapasPorVencer.length === 0 &&
+      seguimiento.problemasAbiertos.length === 0 &&
+      seguimiento.lotesListos.length === 0 &&
+      stockBajo.length === 0;
+    if (sinPendientes) {
+      lineasCortas.push('Todo en orden: sin pendientes de seguimiento hoy.');
+    } else {
+      const partesVencimientos: string[] = [];
       if (seguimiento.etapasVencidas.length > 0) {
-        partes.push(`${seguimiento.etapasVencidas.length} vencida(s)`);
+        partesVencimientos.push(`${seguimiento.etapasVencidas.length} vencida(s)`);
       }
       if (seguimiento.etapasPorVencer.length > 0) {
-        partes.push(`${seguimiento.etapasPorVencer.length} vencen en 3 días`);
+        partesVencimientos.push(`${seguimiento.etapasPorVencer.length} vencen en 3 días`);
       }
-      lineasCortas.push(`⏰ ${partes.join(' · ')}`);
-    }
-    if (seguimiento.problemasAbiertos.length > 0 || seguimiento.lotesListos.length > 0) {
-      const partes: string[] = [];
-      if (seguimiento.problemasAbiertos.length > 0) {
-        partes.push(`${seguimiento.problemasAbiertos.length} problema(s) abierto(s)`);
+      lineasCortas.push(
+        partesVencimientos.length > 0
+          ? `⏰ ${partesVencimientos.join(' · ')}`
+          : '⏰ Sin etapas vencidas ni por vencer'
+      );
+      if (seguimiento.problemasAbiertos.length > 0 || seguimiento.lotesListos.length > 0) {
+        const partes: string[] = [];
+        if (seguimiento.problemasAbiertos.length > 0) {
+          partes.push(`${seguimiento.problemasAbiertos.length} problema(s) abierto(s)`);
+        }
+        if (seguimiento.lotesListos.length > 0) {
+          partes.push(`${seguimiento.lotesListos.length} lote(s) listo(s)`);
+        }
+        lineasCortas.push(`⚠ ${partes.join(' · ')}`);
       }
-      if (seguimiento.lotesListos.length > 0) {
-        partes.push(`${seguimiento.lotesListos.length} lote(s) listo(s)`);
-      }
-      lineasCortas.push(`⚠ ${partes.join(' · ')}`);
-    }
-    if (stockBajo.length > 0) {
-      lineasCortas.push(`📦 ${stockBajo.length} insumo(s) en stock bajo`);
-    }
-    if (lineasCortas.length === 0) {
-      lineasCortas.push('Todo en orden: sin pendientes de seguimiento hoy.');
+      lineasCortas.push(
+        stockBajo.length > 0 ? `📦 ${stockBajo.length} insumo(s) en stock bajo` : '📦 Stock en orden'
+      );
     }
 
     return { resumen: lineasResumen.join('\n'), lineas: lineasCortas.slice(0, 3) };
@@ -605,7 +623,7 @@ export async function preguntarAsistente(pregunta: string): Promise<string> {
       for (const lote of lotesAbiertos.slice(0, 5)) {
         const seg = calcularSeguimientoLote(aSeguimientoInput(lote), hoy);
         lineas.push(
-          `• ${lote.codigoLote} · ${lote.receta.nombre} — ${seg.avancePorcentaje}% (${seg.etapasHechas}/${seg.etapasTotal} etapas), ${seg.cuentaRegresivaLote.texto}.`
+          `• ${lote.codigoLote} · ${lote.receta.nombre} — ${seg.etapasTotal === 0 ? 'sin etapas registradas' : `${seg.avancePorcentaje}% (${seg.etapasHechas}/${seg.etapasTotal} etapas)`}, ${seg.cuentaRegresivaLote.texto}.`
         );
       }
       lineas.push('', 'Para el detalle de uno, dime su código, por ejemplo «¿Cómo va el lote LT-001?».');
