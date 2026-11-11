@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BookOpen,
+  Bot,
   ClipboardList,
   Contact,
   DatabaseBackup,
@@ -37,6 +38,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Inicio', icono: Home },
   { href: '/dashboard', label: 'Dashboard', icono: LayoutDashboard },
+  { href: '/asistente', label: 'Asistente', icono: Bot },
   { href: '/insumos', label: 'Insumos', icono: Package },
   { href: '/recetas', label: 'Recetas', icono: BookOpen },
   { href: '/produccion', label: 'Producción', icono: Factory },
@@ -54,7 +56,7 @@ const NAV_ITEMS: NavItem[] = [
 // Agrupación de la barra lateral de escritorio. El drawer móvil sigue
 // mostrando la lista plana, como le gusta al usuario.
 const GRUPOS_NAV: { titulo: string; hrefs: string[] }[] = [
-  { titulo: 'Principal', hrefs: ['/', '/dashboard'] },
+  { titulo: 'Principal', hrefs: ['/', '/dashboard', '/asistente'] },
   { titulo: 'Operación', hrefs: ['/insumos', '/recetas', '/produccion', '/precios'] },
   { titulo: 'Ventas', hrefs: ['/ventas', '/pos', '/clientes', '/pedidos'] },
   { titulo: 'Sistema', hrefs: ['/archivos', '/historial', '/usuarios', '/respaldo'] },

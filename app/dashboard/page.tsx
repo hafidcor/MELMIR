@@ -7,6 +7,7 @@ import { GraficoBarrasVentas, GraficoDonaLotes, GraficoStockInsumos } from '@/co
 import { isDbConfigured, prisma } from '@/lib/prisma';
 import { obtenerResumenVentas, obtenerVentas, type ResumenVentas } from '@/app/actions/ventas';
 import { obtenerSeguimientoDashboard, type SeguimientoDashboard } from '@/app/actions/seguimiento';
+import { obtenerResumenHoy, type ResumenHoy } from '@/app/actions/asistente';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,12 +43,14 @@ export default async function DashboardPage() {
     lotesListos: [],
     recomendacionesUrgentes: [],
   };
+  let resumenAsistente: ResumenHoy = { resumen: '', lineas: [] };
   let insumosTodos: Array<{ id: string; nombre: string; stockActual: unknown; stockMinimo: unknown; unidadMedida: string }> = [];
   let lotesTodos: Array<{ estado: string }> = [];
 
   resumenVentas = await obtenerResumenVentas();
   ventasRecientes = (await obtenerVentas()).slice(0, 5);
   seguimientoLotes = await obtenerSeguimientoDashboard();
+  resumenAsistente = await obtenerResumenHoy();
 
   if (isDbConfigured()) {
     try {
@@ -313,6 +316,31 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </section>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <div>
+              <CardTitle>Asistente MELMIR</CardTitle>
+              <CardDescription>
+                El resumen de hoy, en pocas líneas. Pregúntale por tus lotes en el chat.
+              </CardDescription>
+            </div>
+            <Link href="/asistente">
+              <Button variant="outline" size="sm">
+                Preguntar →
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              {resumenAsistente.lineas.map((linea, i) => (
+                <p key={i} className="text-sm text-slate-600 dark:text-slate-300">
+                  {linea}
+                </p>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-3">

@@ -416,6 +416,44 @@ personalizados según su caso, todo dentro de la app (sin correo ni SMS):
   ($1,248.30 / $10.40 por botella) queda como su inversión real
   registrada.
 
+## Novedades: asistente dentro de la app (chat de seguimiento)
+
+Un asistente sencillo en `/asistente` que responde preguntas sobre los
+lotes con los datos reales de la app. Es por reglas, no usa ningún
+servicio externo de IA ni claves de API (cero costo, sin cuentas
+nuevas) y es SOLO lectura: nunca crea, edita ni borra nada, y
+cualquier rol puede preguntar (CONSULTA incluido):
+
+- **Chat con preguntas rápidas (`components/asistente-chat.tsx`)**:
+  chips para no tener que escribir («Resumen de hoy», «¿Qué vence esta
+  semana?», «Problemas abiertos», «¿Cómo va el lote LT-001?», «¿Qué me
+  recomiendas?», «¿Qué insumos me faltan?») más campo de texto libre.
+  El historial vive solo en la sesión del navegador: nada se guarda en
+  la base de datos.
+- **Motor de respuestas (`app/actions/asistente.ts`,
+  `preguntarAsistente`)**: entiende español con coincidencia de
+  palabras clave tolerante (acentos, mayúsculas, sinónimos: vence /
+  vencimiento / esta semana / hoy; problema / incidencia / falla; stock
+  / insumo / falta; venta / cliente / pedido) y el código del lote
+  (LT-001, LT-002…). Reutiliza `obtenerSeguimientoDashboard`,
+  `calcularSeguimientoLote`, las alertas de stock y el resumen de
+  ventas. Intenciones: resumen de hoy; vencimientos (hoy, esta semana,
+  vencidas); estado de un lote por código (avance, cuenta regresiva,
+  etapas, problemas y recomendaciones; si pregunta «¿cómo va el lote?»
+  sin dar código, responde con el lote abierto más reciente); problemas abiertos; stock bajo y faltantes para lotes;
+  recomendaciones generales; ventas/clientes/pedidos; botellas en
+  stock; lotes abiertos. Si no entiende, lo dice y lista preguntas de
+  ejemplo.
+- **Resumen de hoy (`obtenerResumenHoy`)**: al abrir `/asistente` ya
+  aparece un primer mensaje con el resumen del día (vencidas, por
+  vencer en 3 días, problemas abiertos, lotes listos, stock bajo y lo
+  más urgente). El Dashboard tiene una tarjeta pequeña «Asistente
+  MELMIR» con ese mismo resumen en 2-3 líneas y un enlace al chat.
+- **Enlace en el menú**: sección Principal, junto a Inicio y
+  Dashboard (también en el drawer móvil; la barra inferior móvil no
+  cambia).
+- **Sin cambios de esquema** y sin tocar el seed ni los datos.
+
 ## Estructura principal
 - `app/` páginas y listas principales
 - `app/actions/` server actions
