@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 
 import { ContenidoPrincipal } from '@/components/contenido-principal';
+import { BurbujaAsistente } from '@/components/burbuja-asistente';
 import { Navegacion } from '@/components/navegacion';
 import { obtenerConteoAlertasStock } from '@/app/actions/alertas';
 import { hayUsuarios, obtenerSesion } from '@/lib/auth';
@@ -71,6 +72,9 @@ export default async function RootLayout({
       </head>
       <body className="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <Navegacion usuario={usuario} authActiva={authActiva} alertasStock={alertasStock} />
+        {/* Burbuja flotante del asistente: en todas las páginas internas
+            (no en /login ni en la ficha pública, que usa otro layout). */}
+        <BurbujaAsistente />
         {/* En escritorio el contenido se desplaza a la derecha de la barra
             lateral fija; en /login ocupa todo el ancho (ver el componente). */}
         <ContenidoPrincipal>{children}</ContenidoPrincipal>

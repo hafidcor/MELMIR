@@ -416,13 +416,23 @@ personalizados según su caso, todo dentro de la app (sin correo ni SMS):
   ($1,248.30 / $10.40 por botella) queda como su inversión real
   registrada.
 
-## Novedades: asistente dentro de la app (chat de seguimiento)
+## Novedades: asistente dentro de la app (burbuja flotante)
 
-Un asistente sencillo en `/asistente` que responde preguntas sobre los
-lotes con los datos reales de la app. Es por reglas, no usa ningún
-servicio externo de IA ni claves de API (cero costo, sin cuentas
-nuevas) y es SOLO lectura: nunca crea, edita ni borra nada, y
-cualquier rol puede preguntar (CONSULTA incluido):
+Un asistente sencillo que responde preguntas sobre los lotes con los
+datos reales de la app. Es por reglas, no usa ningún servicio externo
+de IA ni claves de API (cero costo, sin cuentas nuevas) y es SOLO
+lectura: nunca crea, edita ni borra nada, y cualquier rol puede
+preguntar (CONSULTA incluido). Vive en una burbuja flotante
+(`components/burbuja-asistente.tsx`) presente en todas las páginas
+internas del ERP, abajo a la derecha: en móvil queda por encima de la
+barra inferior y el panel es casi a pantalla completa; en escritorio
+es un panel de 380 px. No aparece en /login ni en la ficha pública
+/hidromiel. Al abrirlo por primera vez carga el resumen de hoy; la
+conversación se conserva al cerrar y volver a abrir dentro de la
+misma sesión. La ruta /asistente ya no es una página: redirige al
+tablero. Ya no hay enlace en el menú: se pregunta desde la burbuja
+(o desde el botón «Preguntar» de la tarjeta del Dashboard, que la
+abre con un evento de ventana).
 
 - **Chat con preguntas rápidas (`components/asistente-chat.tsx`)**:
   chips para no tener que escribir («Resumen de hoy», «¿Qué vence esta
@@ -444,14 +454,12 @@ cualquier rol puede preguntar (CONSULTA incluido):
   recomendaciones generales; ventas/clientes/pedidos; botellas en
   stock; lotes abiertos. Si no entiende, lo dice y lista preguntas de
   ejemplo.
-- **Resumen de hoy (`obtenerResumenHoy`)**: al abrir `/asistente` ya
+- **Resumen de hoy (`obtenerResumenHoy`)**: al abrir la burbuja ya
   aparece un primer mensaje con el resumen del día (vencidas, por
   vencer en 3 días, problemas abiertos, lotes listos, stock bajo y lo
   más urgente). El Dashboard tiene una tarjeta pequeña «Asistente
-  MELMIR» con ese mismo resumen en 2-3 líneas y un enlace al chat.
-- **Enlace en el menú**: sección Principal, junto a Inicio y
-  Dashboard (también en el drawer móvil; la barra inferior móvil no
-  cambia).
+  MELMIR» con ese mismo resumen en 2-3 líneas y un botón «Preguntar»
+  que abre la burbuja.
 - **Sin cambios de esquema** y sin tocar el seed ni los datos.
 
 ## Estructura principal

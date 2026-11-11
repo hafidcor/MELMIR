@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
+import { BotonAbrirAsistente } from '@/components/boton-abrir-asistente';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DbWarning } from '@/components/db-warning';
 import { GraficoBarrasVentas, GraficoDonaLotes, GraficoStockInsumos } from '@/components/graficas';
@@ -322,14 +323,11 @@ export default async function DashboardPage() {
             <div>
               <CardTitle>Asistente MELMIR</CardTitle>
               <CardDescription>
-                El resumen de hoy, en pocas líneas. Pregúntale por tus lotes en el chat.
+                El resumen de hoy, en pocas líneas. Pregúntale por tus lotes en la burbuja del
+                chat, abajo a la derecha.
               </CardDescription>
             </div>
-            <Link href="/asistente">
-              <Button variant="outline" size="sm">
-                Preguntar →
-              </Button>
-            </Link>
+            <BotonAbrirAsistente />
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
