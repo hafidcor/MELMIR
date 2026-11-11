@@ -6,7 +6,7 @@ import { DbWarning } from '@/components/db-warning';
 import { GraficoBarrasVentas, GraficoDonaLotes, GraficoStockInsumos } from '@/components/graficas';
 import { isDbConfigured, prisma } from '@/lib/prisma';
 import { obtenerResumenVentas, obtenerVentas, type ResumenVentas } from '@/app/actions/ventas';
-import { obtenerProximasEtapas, type EtapaProxima } from '@/app/actions/alertas';
+import { obtenerSeguimientoDashboard, type SeguimientoDashboard } from '@/app/actions/seguimiento';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,13 +35,19 @@ export default async function DashboardPage() {
     porMes: [],
   };
   let ventasRecientes: Awaited<ReturnType<typeof obtenerVentas>> = [];
-  let proximasEtapas: EtapaProxima[] = [];
+  let seguimientoLotes: SeguimientoDashboard = {
+    etapasVencidas: [],
+    etapasPorVencer: [],
+    problemasAbiertos: [],
+    lotesListos: [],
+    recomendacionesUrgentes: [],
+  };
   let insumosTodos: Array<{ id: string; nombre: string; stockActual: unknown; stockMinimo: unknown; unidadMedida: string }> = [];
   let lotesTodos: Array<{ estado: string }> = [];
 
   resumenVentas = await obtenerResumenVentas();
   ventasRecientes = (await obtenerVentas()).slice(0, 5);
-  proximasEtapas = await obtenerProximasEtapas();
+  seguimientoLotes = await obtenerSeguimientoDashboard();
 
   if (isDbConfigured()) {
     try {
@@ -176,8 +182,10 @@ export default async function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-3">
               <div>
-                <CardTitle>Próximas etapas de producción</CardTitle>
-                <CardDescription>Vencidas o que vencen en los próximos 7 días</CardDescription>
+                <CardTitle>Seguimiento de lotes</CardTitle>
+                <CardDescription>
+                  Etapas vencidas, por vencer, problemas abiertos y lotes listos
+                </CardDescription>
               </div>
               <Link href="/produccion">
                 <Button variant="outline" size="sm">
@@ -186,33 +194,120 @@ export default async function DashboardPage() {
               </Link>
             </CardHeader>
             <CardContent>
-              {proximasEtapas.length === 0 ? (
+              {seguimientoLotes.etapasVencidas.length === 0 &&
+              seguimientoLotes.etapasPorVencer.length === 0 &&
+              seguimientoLotes.problemasAbiertos.length === 0 &&
+              seguimientoLotes.lotesListos.length === 0 ? (
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Sin etapas próximas. Asigna fechas planeadas a las etapas en Producción
-                  para que aparezcan aquí.
+                  Sin pendientes de seguimiento. Asigna fechas planeadas a las
+                  etapas en Producción para que aparezcan aquí.
                 </p>
               ) : (
-                <div className="space-y-2">
-                  {proximasEtapas.map((etapa) => (
-                    <div
-                      key={etapa.id}
-                      className={`flex items-center justify-between rounded-lg border px-4 py-2 text-sm ${
-                        etapa.vencida
-                          ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/60'
-                          : 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/60'
-                      }`}
-                    >
-                      <span className="font-medium">
-                        {etapa.nombre} · {etapa.loteCodigo} ({etapa.recetaNombre})
-                      </span>
-                      <span className="font-semibold">
-                        {etapa.vencida ? 'Vencida · ' : ''}
-                        {etapa.fechaPlaneada
-                          ? new Date(etapa.fechaPlaneada).toLocaleDateString('es-MX')
-                          : 'Sin fecha'}
-                      </span>
+                <div className="space-y-4">
+                  {seguimientoLotes.recomendacionesUrgentes.length > 0 && (
+                    <div className="space-y-2">
+                      {seguimientoLotes.recomendacionesUrgentes.map((rec, i) => (
+                        <div
+                          key={i}
+                          className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/60 dark:text-red-200"
+                        >
+                          <span className="font-semibold">{rec.loteCodigo}: </span>
+                          {rec.mensaje}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                  {seguimientoLotes.etapasVencidas.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-sm font-semibold text-red-700 dark:text-red-300">
+                        ⏰ Etapas vencidas sin hacer
+                      </p>
+                      <div className="space-y-2">
+                        {seguimientoLotes.etapasVencidas.map((etapa) => (
+                          <div
+                            key={etapa.id}
+                            className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm dark:border-red-800 dark:bg-red-950/60"
+                          >
+                            <span className="font-medium">
+                              {etapa.nombre} · {etapa.loteCodigo} ({etapa.recetaNombre})
+                            </span>
+                            <span className="font-semibold">
+                              Vencida por {etapa.dias ?? '?'} día{(etapa.dias ?? 0) === 1 ? '' : 's'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {seguimientoLotes.etapasPorVencer.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
+                        Vencen en los próximos 3 días
+                      </p>
+                      <div className="space-y-2">
+                        {seguimientoLotes.etapasPorVencer.map((etapa) => (
+                          <div
+                            key={etapa.id}
+                            className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm dark:border-amber-800 dark:bg-amber-950/60"
+                          >
+                            <span className="font-medium">
+                              {etapa.nombre} · {etapa.loteCodigo} ({etapa.recetaNombre})
+                            </span>
+                            <span className="font-semibold">
+                              {(etapa.dias ?? 0) === 0
+                                ? 'Vence hoy'
+                                : `Falta${(etapa.dias ?? 0) === 1 ? '' : 'n'} ${etapa.dias} día${(etapa.dias ?? 0) === 1 ? '' : 's'}`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {seguimientoLotes.problemasAbiertos.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-sm font-semibold text-red-700 dark:text-red-300">
+                        ⚠ Problemas abiertos por lote
+                      </p>
+                      <div className="space-y-2">
+                        {seguimientoLotes.problemasAbiertos.map((problema) => (
+                          <div
+                            key={problema.id}
+                            className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm dark:border-red-800 dark:bg-red-950/60"
+                          >
+                            <p className="font-medium">
+                              {problema.loteCodigo} ({problema.recetaNombre})
+                              {problema.insumoNombre ? ` · Insumo: ${problema.insumoNombre}` : ''}
+                              {problema.etapa ? ` · Etapa: ${problema.etapa}` : ''}
+                            </p>
+                            <p className="mt-1 text-slate-600 dark:text-slate-300">{problema.texto}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {seguimientoLotes.lotesListos.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                        ✓ Lotes listos
+                      </p>
+                      <div className="space-y-2">
+                        {seguimientoLotes.lotesListos.map((lote) => (
+                          <div
+                            key={lote.id}
+                            className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm dark:border-emerald-800 dark:bg-emerald-950/60"
+                          >
+                            <span className="font-medium">
+                              {lote.codigoLote} ({lote.recetaNombre})
+                            </span>
+                            <span>
+                              {lote.motivo}
+                              {lote.botellasEnStock > 0 ? ` · ${lote.botellasEnStock} bot. en stock` : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

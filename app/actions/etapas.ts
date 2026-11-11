@@ -60,12 +60,21 @@ export async function actualizarEtapa(formData: FormData) {
   }
 
   const estado = estadoForm as (typeof estadosValidos)[number];
+  const etapaActual = await prisma.loteEtapa.findUnique({ where: { id: etapaId } });
+  if (!etapaActual) {
+    throw new Error('La etapa no existe');
+  }
+
   await prisma.loteEtapa.update({
     where: { id: etapaId },
     data: {
       estado,
       fechaPlaneada: fechaPlaneadaForm ? new Date(fechaPlaneadaForm) : null,
       fechaReal: estado === 'HECHA' ? new Date() : null,
+      // Al entrar en curso se registra cuándo empezó (solo si aún no
+      // tenía inicio): sirve para decir cuántos días lleva la etapa.
+      fechaInicio:
+        estado === 'EN_CURSO' && !etapaActual.fechaInicio ? new Date() : undefined,
     },
   });
 

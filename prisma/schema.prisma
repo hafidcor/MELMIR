@@ -65,6 +65,7 @@ model Insumo {
 
   recetaInsumos RecetaInsumo[]
   movimientos   InsumoMovimiento[]
+  notasLote     NotaLote[]
 
   @@map("insumos")
 }
@@ -144,6 +145,7 @@ model LoteProduccion {
   receta            Receta            @relation(fields: [recetaId], references: [id], onDelete: Restrict)
   productoTerminado ProductoTerminado?
   etapas            LoteEtapa[]
+  notas             NotaLote[]
   // Consumo real de insumos ligado al lote (PRODUCCION_CONSUMO) y
   // costos adicionales de producción (gas, mano de obra, etc.).
   movimientos       InsumoMovimiento[]
@@ -259,6 +261,9 @@ model LoteEtapa {
   orden            Int
   fechaPlaneada    DateTime?
   fechaReal        DateTime?
+  // Cuándo empezó la etapa (se registra al pasar a EN_CURSO): sirve
+  // para decir cuántos días lleva, por ejemplo, la fermentación.
+  fechaInicio      DateTime?
   estado           EstadoEtapa @default(PENDIENTE)
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
@@ -267,6 +272,32 @@ model LoteEtapa {
 
   @@unique([loteProduccionId, orden])
   @@map("lote_etapas")
+}
+
+enum TipoNotaLote {
+  NOTA
+  PROBLEMA
+}
+
+// Nota o incidencia de un lote: texto libre, problema con un
+// ingrediente (insumoId) o con una parte del proceso (etapa, nombre
+// libre de la etapa). Los problemas se pueden marcar como resueltos.
+model NotaLote {
+  id               String      @id @default(cuid())
+  loteProduccionId String
+  tipo             TipoNotaLote @default(NOTA)
+  texto            String      @db.Text
+  insumoId         String?
+  etapa            String?
+  resuelto         Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  loteProduccion LoteProduccion @relation(fields: [loteProduccionId], references: [id], onDelete: Cascade)
+  insumo         Insumo?        @relation(fields: [insumoId], references: [id], onDelete: SetNull)
+
+  @@index([loteProduccionId])
+  @@map("notas_lote")
 }
 
 enum EntidadArchivo {

@@ -373,6 +373,49 @@ calcula con la fórmula teórica de la receta:
   desglose no muestra movimientos porque se registró antes del consumo
   ligado al lote.
 
+## Novedades: seguimiento de lotes con tiempos, notas y recomendaciones
+
+Cada lote lleva su seguimiento con tiempos, incidencias y mensajes
+personalizados según su caso, todo dentro de la app (sin correo ni SMS):
+
+- **Línea de tiempo y cuenta regresiva (`/produccion`)**: cada lote
+  muestra sus 4 etapas (Fermentación, Trasiego, Clarificación,
+  Embotellado) en orden con fecha planeada, fecha real y estado, más una
+  cuenta regresiva por etapa («Faltan 3 días» / «Vence hoy» / «Vencida
+  por 2 días» / «Hecha el …») y por lote («Listo en 5 días» /
+  «Retrasado por 2 días» / «Sin fecha estimada»), la fecha estimada en
+  que estará listo (fecha planeada de la última etapa pendiente) y el
+  avance (etapas hechas / total, con barra). Si un lote no tiene fechas
+  planeadas, se indica y se ofrece ponerlas; nunca se inventan fechas.
+- **Notas e incidencias (`NotaLote`)**: en la vista del lote se pueden
+  agregar notas y reportar problemas, con insumo (si es problema con un
+  ingrediente) o etapa (si es problema de una parte del proceso)
+  opcionales. Se listan en orden cronológico, los problemas abiertos se
+  ven destacados en rojo y se pueden marcar como resueltos (o reabrir).
+- **Alertas y recordatorios (Dashboard, «Seguimiento de lotes»)**:
+  etapas vencidas sin hacer, etapas que vencen en los próximos 3 días,
+  problemas abiertos por lote, lotes listos (etapas hechas sin cerrar, o
+  completados sin ventas) y las recomendaciones urgentes. Cada lote lleva
+  sus insignias de alerta en `/produccion`.
+- **Recomendaciones personalizadas por lote** (`app/lib/seguimiento.ts`,
+  `calcularSeguimientoLote`; las acciones viven en
+  `app/actions/seguimiento.ts`): mensajes según el estado real del lote,
+  con nivel urgente / sugerencia / información, y solo con datos reales:
+  etapa vencida → hacerla cuanto antes; etapa por vencer → preparar lo
+  necesario; problema abierto → revisarlo y resolverlo; stock de un
+  insumo de la receta insuficiente → reponer antes de empezar; todas las
+  etapas hechas → cerrar y embotellar; completado sin ventas → registrar
+  la venta; sin fechas planeadas → asignarlas; fermentación en curso →
+  cuántos días lleva (según `fechaInicio`, que se registra al pasar la
+  etapa a EN_CURSO; las etapas viejas no lo tienen y el mensaje no
+  inventa días).
+- **Permisos**: crear notas/problemas y resolverlos es solo ADMIN y
+  OPERADOR (permiso `produccion`); CONSULTA solo lee. No se agregó
+  ninguna página nueva: todo cabe en `/produccion` y el Dashboard.
+- **LT-001 no se tocó**: el seed no cambió y su costo guardado
+  ($1,248.30 / $10.40 por botella) queda como su inversión real
+  registrada.
+
 ## Estructura principal
 - `app/` páginas y listas principales
 - `app/actions/` server actions
